@@ -76,10 +76,12 @@ export function usePresupuestos() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['presupuestos'] });
-      toast.success('Presupuesto creado correctamente');
+      // Toast handled in component for better UX
     },
     onError: (error) => {
-      toast.error('Error al crear presupuesto: ' + error.message);
+      console.error('Error creating presupuesto:', error);
+      // Re-throw to allow component to handle
+      throw error;
     },
   });
 
@@ -113,10 +115,12 @@ export function usePresupuestos() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['presupuestos'] });
-      toast.success('Presupuesto actualizado');
+      // Toast handled in component for better UX
     },
     onError: (error) => {
-      toast.error('Error al actualizar: ' + error.message);
+      console.error('Error updating presupuesto:', error);
+      // Re-throw to allow component to handle
+      throw error;
     },
   });
 

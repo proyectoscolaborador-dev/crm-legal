@@ -112,12 +112,21 @@ export default function Index() {
     status: WorkStatus;
     position: number;
   }) => {
-    // Get client data for presupuesto
-    const client = clients.find((c: Client) => c.id === workData.client_id);
-    if (!client) {
-      toast.error('Cliente no encontrado');
-      return;
-    }
+    // Get client data for presupuesto - with fallback to empty object
+    const client = clients.find((c: Client) => c.id === workData.client_id) || {
+      id: workData.client_id,
+      name: '',
+      email: null,
+      phone: null,
+      address: null,
+      postal_code: null,
+      city: null,
+      province: null,
+      nif: null,
+      company: null,
+      country: 'España',
+      notes: null,
+    };
 
     setIsCreatingWork(true);
 
@@ -126,16 +135,17 @@ export default function Index() {
       const newWork = await createWork.mutateAsync(workData);
       
       // Auto-create presupuesto in borrador linked to this work
+      // Pass ALL client fields explicitly to avoid sync issues
       await createPresupuesto.mutateAsync({
         numero_presupuesto: getNextNumero(),
-        cliente_nombre: client.name,
-        cliente_email: client.email,
-        cliente_telefono: client.phone,
-        cliente_direccion: null,
-        cliente_cp: null,
-        cliente_ciudad: null,
-        cliente_provincia: null,
-        descripcion_trabajo_larga: workData.description,
+        cliente_nombre: client.name || 'Sin nombre',
+        cliente_email: client.email || null,
+        cliente_telefono: client.phone || null,
+        cliente_direccion: client.address || null,
+        cliente_cp: client.postal_code || null,
+        cliente_ciudad: client.city || null,
+        cliente_provincia: client.province || null,
+        descripcion_trabajo_larga: workData.description || null,
         obra_titulo: workData.title,
         partidas: [],
         iva_porcentaje: 21,
@@ -150,7 +160,8 @@ export default function Index() {
       toast.success('Trabajo y presupuesto borrador creados');
     } catch (error) {
       console.error('Error creating work with presupuesto:', error);
-      toast.error('Error al crear el trabajo');
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(`Error al crear el trabajo: ${errorMessage}`);
     } finally {
       setIsCreatingWork(false);
     }
