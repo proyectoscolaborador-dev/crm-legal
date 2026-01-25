@@ -30,6 +30,7 @@ export interface Presupuesto {
   user_id: string;
   numero_presupuesto: string;
   cliente_nombre: string;
+  cliente_nif: string | null;
   cliente_email: string | null;
   cliente_telefono: string | null;
   cliente_direccion: string | null;

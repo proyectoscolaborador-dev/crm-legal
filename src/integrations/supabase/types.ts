@@ -131,6 +131,7 @@ export type Database = {
           cliente_cp: string | null
           cliente_direccion: string | null
           cliente_email: string | null
+          cliente_nif: string | null
           cliente_nombre: string
           cliente_provincia: string | null
           cliente_telefono: string | null
@@ -158,6 +159,7 @@ export type Database = {
           cliente_cp?: string | null
           cliente_direccion?: string | null
           cliente_email?: string | null
+          cliente_nif?: string | null
           cliente_nombre: string
           cliente_provincia?: string | null
           cliente_telefono?: string | null
@@ -185,6 +187,7 @@ export type Database = {
           cliente_cp?: string | null
           cliente_direccion?: string | null
           cliente_email?: string | null
+          cliente_nif?: string | null
           cliente_nombre?: string
           cliente_provincia?: string | null
           cliente_telefono?: string | null

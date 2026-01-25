@@ -44,6 +44,7 @@ export function usePresupuestos() {
       const insertData = {
         numero_presupuesto: formData.numero_presupuesto,
         cliente_nombre: formData.cliente_nombre,
+        cliente_nif: formData.cliente_nif || null,
         cliente_email: formData.cliente_email || null,
         cliente_telefono: formData.cliente_telefono || null,
         cliente_direccion: formData.cliente_direccion || null,

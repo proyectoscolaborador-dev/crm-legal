@@ -50,6 +50,7 @@ export default function PresupuestoEditor() {
   const [formData, setFormData] = useState<PresupuestoFormData>({
     numero_presupuesto: '',
     cliente_nombre: '',
+    cliente_nif: '',
     cliente_email: '',
     cliente_telefono: '',
     cliente_direccion: '',
@@ -76,6 +77,7 @@ export default function PresupuestoEditor() {
         setFormData({
           numero_presupuesto: existing.numero_presupuesto,
           cliente_nombre: existing.cliente_nombre,
+          cliente_nif: existing.cliente_nif || '',
           cliente_email: existing.cliente_email || '',
           cliente_telefono: existing.cliente_telefono || '',
           cliente_direccion: existing.cliente_direccion || '',
@@ -134,6 +136,7 @@ export default function PresupuestoEditor() {
       setFormData(prev => ({
         ...prev,
         cliente_nombre: client.name,
+        cliente_nif: client.nif || '',
         cliente_email: client.email || '',
         cliente_telefono: client.phone || '',
         cliente_direccion: client.address || '',
