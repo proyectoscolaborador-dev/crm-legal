@@ -2,12 +2,15 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { EmpresaUsuario, Presupuesto, Partida } from '@/types/empresa';
 
+export type DocumentType = 'presupuesto' | 'factura';
+
 interface PdfGeneratorOptions {
   presupuesto: Presupuesto | {
     numero_presupuesto: string;
     fecha_presupuesto: string;
     validez_dias: number;
     cliente_nombre: string;
+    cliente_nif?: string | null;
     cliente_direccion?: string | null;
     cliente_cp?: string | null;
     cliente_ciudad?: string | null;
@@ -20,11 +23,13 @@ interface PdfGeneratorOptions {
     estado_presupuesto: string;
     partidas: Partida[];
     iva_porcentaje: number;
+    invoice_number?: string | null;
   };
   empresa: EmpresaUsuario;
   subtotal: number;
   iva_importe: number;
   total: number;
+  documentType?: DocumentType;
 }
 
 const formatCurrency = (value: number): string => {
@@ -44,7 +49,8 @@ const formatDate = (dateStr: string): string => {
 };
 
 export async function generatePresupuestoPdf(options: PdfGeneratorOptions): Promise<Blob> {
-  const { presupuesto, empresa, subtotal, iva_importe, total } = options;
+  const { presupuesto, empresa, subtotal, iva_importe, total, documentType = 'presupuesto' } = options;
+  const isInvoice = documentType === 'factura';
   
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -108,16 +114,26 @@ export async function generatePresupuestoPdf(options: PdfGeneratorOptions): Prom
   yPos += 10;
 
   // --- TITLE BLOCK ---
+  const documentLabel = isInvoice ? 'FACTURA' : 'PRESUPUESTO';
+  const documentNumber = isInvoice && 'invoice_number' in presupuesto && presupuesto.invoice_number 
+    ? presupuesto.invoice_number 
+    : presupuesto.numero_presupuesto;
+  
   doc.setFontSize(18);
   doc.setTextColor(...primaryColor);
   doc.setFont('helvetica', 'bold');
-  doc.text(`PRESUPUESTO Nº ${presupuesto.numero_presupuesto}`, margin, yPos);
+  doc.text(`${documentLabel} Nº ${documentNumber}`, margin, yPos);
   yPos += 6;
 
   doc.setFontSize(10);
   doc.setTextColor(...lightGray);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Fecha: ${formatDate(presupuesto.fecha_presupuesto)} · Validez: ${presupuesto.validez_dias} días`, margin, yPos);
+  
+  if (isInvoice) {
+    doc.text(`Fecha de emisión: ${formatDate(presupuesto.fecha_presupuesto)}`, margin, yPos);
+  } else {
+    doc.text(`Fecha: ${formatDate(presupuesto.fecha_presupuesto)} · Validez: ${presupuesto.validez_dias} días`, margin, yPos);
+  }
   yPos += 12;
 
   // --- TWO COLUMN INFO ---
@@ -132,7 +148,7 @@ export async function generatePresupuestoPdf(options: PdfGeneratorOptions): Prom
   doc.setFontSize(8);
   doc.setTextColor(...lightGray);
   doc.setFont('helvetica', 'bold');
-  doc.text('DATOS DEL CLIENTE', margin + 5, yPos + 6);
+  doc.text(isInvoice ? 'DATOS DE FACTURACIÓN' : 'DATOS DEL CLIENTE', margin + 5, yPos + 6);
 
   doc.setFontSize(10);
   doc.setTextColor(...darkGray);
@@ -261,7 +277,7 @@ export async function generatePresupuestoPdf(options: PdfGeneratorOptions): Prom
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryColor);
-  doc.text('TOTAL PRESUPUESTO', totalsX, yPos);
+  doc.text(isInvoice ? 'TOTAL FACTURA' : 'TOTAL PRESUPUESTO', totalsX, yPos);
   doc.text(formatCurrency(total), pageWidth - margin, yPos, { align: 'right' });
   yPos += 12;
 
@@ -287,16 +303,25 @@ export async function generatePresupuestoPdf(options: PdfGeneratorOptions): Prom
   doc.line(margin, yPos, pageWidth - margin, yPos);
   yPos += 8;
 
-  doc.setFontSize(9);
-  doc.setTextColor(...darkGray);
-  doc.setFont('helvetica', 'italic');
-  doc.text('"Acepto el presente presupuesto y las condiciones indicadas."', margin, yPos);
-  yPos += 12;
+  // Only show acceptance section for quotes, not invoices
+  if (!isInvoice) {
+    doc.setFontSize(9);
+    doc.setTextColor(...darkGray);
+    doc.setFont('helvetica', 'italic');
+    doc.text('"Acepto el presente presupuesto y las condiciones indicadas."', margin, yPos);
+    yPos += 12;
 
-  doc.setFont('helvetica', 'normal');
-  doc.text('Firma y DNI del cliente: _______________________________', margin, yPos);
-  yPos += 8;
-  doc.text('Fecha: ____ / ____ / __________', margin, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Firma y DNI del cliente: _______________________________', margin, yPos);
+    yPos += 8;
+    doc.text('Fecha: ____ / ____ / __________', margin, yPos);
+  } else {
+    doc.setFontSize(9);
+    doc.setTextColor(...darkGray);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Esta factura tiene validez fiscal según la normativa vigente.', margin, yPos);
+  }
+
 
   // --- FOOTER ---
   const footerY = doc.internal.pageSize.getHeight() - 10;
