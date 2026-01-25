@@ -18,6 +18,7 @@ import { CalendarView } from '@/components/CalendarView';
 import { ClientsList } from '@/components/ClientsList';
 import { MobileNav } from '@/components/MobileNav';
 import { NewClientModal } from '@/components/NewClientModal';
+import { DeleteWorkDialog } from '@/components/DeleteWorkDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
@@ -28,9 +29,9 @@ export default function Index() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { clients, createClient, updateClient, deleteClient } = useClients();
-  const { works, createWork, updateWork, updateWorkStatus, isLoading: worksLoading } = useWorks();
+  const { works, createWork, updateWork, updateWorkStatus, deleteWork, isLoading: worksLoading } = useWorks();
   const { empresa, isLoading: empresaLoading, isEmpresaComplete } = useEmpresa();
-  const { createPresupuesto, getNextNumero } = usePresupuestos();
+  const { presupuestos, createPresupuesto, deletePresupuesto, getNextNumero } = usePresupuestos();
 
   const [selectedWork, setSelectedWork] = useState<WorkWithClient | null>(null);
   const [isClientPanelOpen, setIsClientPanelOpen] = useState(false);
@@ -39,6 +40,11 @@ export default function Index() {
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('pipeline');
   const [isCreatingWork, setIsCreatingWork] = useState(false);
+  
+  // Delete work dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [workToDelete, setWorkToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   if (authLoading || empresaLoading) {
     return (
@@ -155,6 +161,36 @@ export default function Index() {
     }
   };
 
+  // Handle delete work from Kanban card
+  const handleDeleteWorkClick = (workId: string) => {
+    setWorkToDelete(workId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDeleteWork = async () => {
+    if (!workToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      // Find and delete linked presupuesto first
+      const linkedPresupuesto = presupuestos.find(p => p.work_id === workToDelete);
+      if (linkedPresupuesto) {
+        await deletePresupuesto.mutateAsync(linkedPresupuesto.id);
+      }
+      // Then delete the work
+      await deleteWork.mutateAsync(workToDelete);
+    } catch (error) {
+      console.error('Error deleting work:', error);
+      toast.error('Error al eliminar el trabajo');
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setWorkToDelete(null);
+    }
+  };
+
+  const workToDeleteData = works.find(w => w.id === workToDelete);
+
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Header
@@ -176,7 +212,12 @@ export default function Index() {
           </TabsList>
 
           <TabsContent value="pipeline" className="mt-4">
-            <KanbanBoard works={works} onStatusChange={handleStatusChange} onWorkClick={handleWorkClick} />
+            <KanbanBoard 
+              works={works} 
+              onStatusChange={handleStatusChange} 
+              onWorkClick={handleWorkClick}
+              onDeleteWork={handleDeleteWorkClick}
+            />
           </TabsContent>
 
           <TabsContent value="history" className="mt-4">
@@ -200,7 +241,12 @@ export default function Index() {
         {/* Mobile Content */}
         <div className="md:hidden">
           {activeTab === 'pipeline' && (
-            <KanbanBoard works={works} onStatusChange={handleStatusChange} onWorkClick={handleWorkClick} />
+            <KanbanBoard 
+              works={works} 
+              onStatusChange={handleStatusChange} 
+              onWorkClick={handleWorkClick}
+              onDeleteWork={handleDeleteWorkClick}
+            />
           )}
           {activeTab === 'history' && (
             <HistoryList works={works} onWorkClick={handleWorkClick} />
@@ -257,6 +303,18 @@ export default function Index() {
       />
 
       <ImportCSV isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleImportClients} />
+
+      {/* Delete Work Confirmation Dialog */}
+      <DeleteWorkDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setWorkToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteWork}
+        workTitle={workToDeleteData?.title}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

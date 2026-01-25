@@ -10,13 +10,14 @@ import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PdfPreviewModal } from '@/components/PdfPreviewModal';
+import { DeleteWorkDialog } from '@/components/DeleteWorkDialog';
 import { 
   Phone, 
   Mail, 
   Building2, 
   MessageSquare, 
   Star,
-  DollarSign,
+  Euro,
   Calendar,
   CheckCircle,
   X,
@@ -25,7 +26,8 @@ import {
   Download,
   Loader2,
   Eye,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -41,8 +43,8 @@ interface ClientPanelProps {
 
 export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: ClientPanelProps) {
   const navigate = useNavigate();
-  const { markAsPaid, updateWorkStatus } = useWorks();
-  const { presupuestos, isLoading: presupuestosLoading, updatePresupuesto } = usePresupuestos();
+  const { markAsPaid, updateWorkStatus, deleteWork } = useWorks();
+  const { presupuestos, isLoading: presupuestosLoading, updatePresupuesto, deletePresupuesto } = usePresupuestos();
   const { empresa, isEmpresaComplete } = useEmpresa();
   const [editedWork, setEditedWork] = useState<Partial<WorkWithClient>>({});
   const [isSendingPresupuesto, setIsSendingPresupuesto] = useState(false);
@@ -51,6 +53,10 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
   // PDF Modal state
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Early return if no work - but still show sheet if open
   if (!work) {
@@ -93,7 +99,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
   };
 
-  const handleEditPresupuesto = () => {
+  const handleEditPresupuesto = async () => {
     if (!isEmpresaComplete) {
       toast.error('Debes completar los datos de tu empresa primero');
       navigate('/mis-datos-empresa', { state: { returnTo: '/' } });
@@ -101,12 +107,32 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
     }
 
     if (linkedPresupuesto) {
-      navigate(`/presupuestos/${linkedPresupuesto.id}`);
+      // Navigate to existing budget - use correct route /presupuesto/:id
+      navigate(`/presupuesto/${linkedPresupuesto.id}`);
     } else {
-      // No presupuesto linked, create one first
-      navigate('/presupuestos/nuevo', { state: { workId: work.id, client } });
+      // No presupuesto linked - create one first and navigate
+      navigate('/presupuesto/nuevo', { state: { workId: work.id, client } });
     }
     onClose();
+  };
+
+  const handleDeleteWork = async () => {
+    setIsDeleting(true);
+    try {
+      // First delete linked presupuesto if exists
+      if (linkedPresupuesto && deletePresupuesto) {
+        await deletePresupuesto.mutateAsync(linkedPresupuesto.id);
+      }
+      // Then delete the work
+      await deleteWork.mutateAsync(work.id);
+      onClose();
+    } catch (error) {
+      console.error('Error deleting work:', error);
+      toast.error('Error al eliminar el trabajo');
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
   };
 
   const handlePreviewPdf = async () => {
@@ -340,7 +366,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                   <div>
                     <Label className="text-xs text-muted-foreground">Monto</Label>
                     <div className="flex items-center gap-2 mt-1">
-                      <DollarSign className="w-4 h-4 text-primary" />
+                      <Euro className="w-4 h-4 text-primary" />
                       <Input
                         type="number"
                         inputMode="decimal"
@@ -559,6 +585,21 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                   <p className="text-xs text-muted-foreground">Abrir conversación</p>
                 </div>
               </Button>
+
+              {/* Delete Work Button */}
+              <div className="pt-4 border-t border-border">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-14 border-destructive/50 text-destructive hover:bg-destructive/10"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <div className="text-left">
+                    <p className="font-medium">Eliminar Trabajo</p>
+                    <p className="text-xs opacity-80">Borra trabajo y presupuesto asociado</p>
+                  </div>
+                </Button>
+              </div>
             </TabsContent>
           </Tabs>
         </SheetContent>
@@ -576,6 +617,15 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
         clientPhone={client?.phone}
         clientName={client?.name}
         presupuestoTitle={work.title}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteWorkDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteWork}
+        workTitle={work.title}
+        isDeleting={isDeleting}
       />
     </>
   );

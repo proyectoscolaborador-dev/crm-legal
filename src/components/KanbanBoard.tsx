@@ -25,9 +25,10 @@ interface KanbanBoardProps {
   onStatusChange: (workId: string, status: WorkStatus, position: number) => void;
   onWorkClick: (work: WorkWithClient) => void;
   onGenerateInvoice?: (work: WorkWithClient) => void;
+  onDeleteWork?: (workId: string) => void;
 }
 
-export function KanbanBoard({ works, onStatusChange, onWorkClick, onGenerateInvoice }: KanbanBoardProps) {
+export function KanbanBoard({ works, onStatusChange, onWorkClick, onGenerateInvoice, onDeleteWork }: KanbanBoardProps) {
   const [activeWork, setActiveWork] = useState<WorkWithClient | null>(null);
   const [invoiceDialogWork, setInvoiceDialogWork] = useState<WorkWithClient | null>(null);
   const [pendingStatusChange, setPendingStatusChange] = useState<{
@@ -146,6 +147,7 @@ export function KanbanBoard({ works, onStatusChange, onWorkClick, onGenerateInvo
                       key={work.id}
                       work={work}
                       onClick={() => onWorkClick(work)}
+                      onDelete={onDeleteWork}
                     />
                   ))}
                 </SortableContext>
