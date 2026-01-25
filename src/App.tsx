@@ -8,7 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import MisDatosEmpresa from "./pages/MisDatosEmpresa";
-import PresupuestoEditor from "./pages/PresupuestoEditor";
+import SimpleBudgetEditor from "./pages/SimpleBudgetEditor";
 
 const queryClient = new QueryClient();
 
@@ -23,8 +23,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/mis-datos-empresa" element={<MisDatosEmpresa />} />
-            <Route path="/presupuesto/nuevo" element={<PresupuestoEditor />} />
-            <Route path="/presupuesto/:id" element={<PresupuestoEditor />} />
+            <Route path="/presupuesto/nuevo" element={<SimpleBudgetEditor />} />
+            <Route path="/presupuesto/:id" element={<SimpleBudgetEditor />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { usePresupuestos } from '@/hooks/usePresupuestos';
-import { useClients } from '@/hooks/useClients';
+import { useWorks } from '@/hooks/useWorks';
 import { Partida, PresupuestoFormData } from '@/types/empresa';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,52 +31,72 @@ import { toast } from 'sonner';
 import { generatePresupuestoPdf, downloadPdf } from '@/lib/pdfGenerator';
 import { PdfPreviewModal } from '@/components/PdfPreviewModal';
 
-export default function PresupuestoEditor() {
+// Helper to create an empty partida
+const createEmptyPartida = (): Partida => ({
+  id: crypto.randomUUID(),
+  concepto: '',
+  cantidad: 1,
+  precio_unidad: 0,
+  importe_linea: 0,
+});
+
+// Helper to create initial empty form data
+const createInitialFormData = (): PresupuestoFormData => ({
+  numero_presupuesto: '',
+  cliente_nombre: '',
+  cliente_nif: '',
+  cliente_email: '',
+  cliente_telefono: '',
+  cliente_direccion: '',
+  cliente_cp: '',
+  cliente_ciudad: '',
+  cliente_provincia: '',
+  descripcion_trabajo_larga: '',
+  obra_titulo: '',
+  partidas: [createEmptyPartida()],
+  iva_porcentaje: 21,
+  estado_presupuesto: 'borrador',
+  fecha_presupuesto: new Date().toISOString().split('T')[0],
+  validez_dias: 30,
+  comercial_nombre: '',
+  work_id: null,
+  pdf_url: null,
+});
+
+export default function SimpleBudgetEditor() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
   const isEditing = !!id;
+  
+  // Get work/client data passed from navigation state
+  const routeState = location.state as { workId?: string; client?: any } | null;
   
   const { user, loading: authLoading } = useAuth();
   const { empresa, isLoading: empresaLoading, isEmpresaComplete } = useEmpresa();
-  const { presupuestos, createPresupuesto, updatePresupuesto, getNextNumero } = usePresupuestos();
-  const { clients } = useClients();
+  const { presupuestos, createPresupuesto, updatePresupuesto, getNextNumero, isLoading: presupuestosLoading } = usePresupuestos();
+  const { works } = useWorks();
 
   const [saving, setSaving] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
   
-  // Initialize with empty object to prevent undefined errors - all strings empty, never null
-  const [formData, setFormData] = useState<PresupuestoFormData>({
-    numero_presupuesto: '',
-    cliente_nombre: '',
-    cliente_nif: '',
-    cliente_email: '',
-    cliente_telefono: '',
-    cliente_direccion: '',
-    cliente_cp: '',
-    cliente_ciudad: '',
-    cliente_provincia: '',
-    descripcion_trabajo_larga: '',
-    obra_titulo: '',
-    partidas: [{ id: crypto.randomUUID(), concepto: '', cantidad: 1, precio_unidad: 0, importe_linea: 0 }],
-    iva_porcentaje: 21,
-    estado_presupuesto: 'borrador',
-    fecha_presupuesto: new Date().toISOString().split('T')[0],
-    validez_dias: 30,
-    comercial_nombre: '',
-    work_id: null,
-    pdf_url: null,
-  });
+  // LOCAL STATE for form - completely decoupled from database
+  const [formData, setFormData] = useState<PresupuestoFormData>(createInitialFormData);
 
-  // Load existing presupuesto if editing
+  // Load data based on context (existing budget OR new from work)
   useEffect(() => {
-    if (isEditing && presupuestos.length > 0) {
+    if (dataLoaded) return;
+    
+    // Case 1: Editing existing presupuesto
+    if (isEditing && !presupuestosLoading && presupuestos.length > 0) {
       const existing = presupuestos.find(p => p.id === id);
       if (existing) {
         setFormData({
           numero_presupuesto: existing.numero_presupuesto,
-          cliente_nombre: existing.cliente_nombre,
+          cliente_nombre: existing.cliente_nombre || '',
           cliente_nif: existing.cliente_nif || '',
           cliente_email: existing.cliente_email || '',
           cliente_telefono: existing.cliente_telefono || '',
@@ -85,22 +105,54 @@ export default function PresupuestoEditor() {
           cliente_ciudad: existing.cliente_ciudad || '',
           cliente_provincia: existing.cliente_provincia || '',
           descripcion_trabajo_larga: existing.descripcion_trabajo_larga || '',
-          obra_titulo: existing.obra_titulo,
-          // Ensure each partida has a stable ID for React keys
-          partidas: (existing.partidas || []).map(p => ({ ...p, id: p.id || crypto.randomUUID() })),
-          iva_porcentaje: existing.iva_porcentaje,
-          estado_presupuesto: existing.estado_presupuesto,
-          fecha_presupuesto: existing.fecha_presupuesto,
-          validez_dias: existing.validez_dias,
+          obra_titulo: existing.obra_titulo || '',
+          partidas: (existing.partidas || []).map(p => ({ 
+            ...p, 
+            id: p.id || crypto.randomUUID() 
+          })),
+          iva_porcentaje: existing.iva_porcentaje || 21,
+          estado_presupuesto: existing.estado_presupuesto || 'borrador',
+          fecha_presupuesto: existing.fecha_presupuesto || new Date().toISOString().split('T')[0],
+          validez_dias: existing.validez_dias || 30,
           comercial_nombre: existing.comercial_nombre || '',
           work_id: existing.work_id,
           pdf_url: existing.pdf_url,
         });
+        setDataLoaded(true);
+        return;
       }
-    } else if (!isEditing) {
-      setFormData(prev => ({ ...prev, numero_presupuesto: getNextNumero() }));
     }
-  }, [isEditing, id, presupuestos, getNextNumero]);
+    
+    // Case 2: New presupuesto from Work context
+    if (!isEditing && routeState?.workId && routeState?.client) {
+      const client = routeState.client;
+      const work = works.find(w => w.id === routeState.workId);
+      
+      setFormData({
+        ...createInitialFormData(),
+        numero_presupuesto: getNextNumero(),
+        cliente_nombre: client.name || '',
+        cliente_nif: client.nif || '',
+        cliente_email: client.email || '',
+        cliente_telefono: client.phone || '',
+        cliente_direccion: client.address || '',
+        cliente_cp: client.postal_code || '',
+        cliente_ciudad: client.city || '',
+        cliente_provincia: client.province || '',
+        obra_titulo: work?.title || '',
+        descripcion_trabajo_larga: work?.description || '',
+        work_id: routeState.workId,
+      });
+      setDataLoaded(true);
+      return;
+    }
+    
+    // Case 3: New presupuesto without context (should not happen with new flow)
+    if (!isEditing && !presupuestosLoading) {
+      setFormData(prev => ({ ...prev, numero_presupuesto: getNextNumero() }));
+      setDataLoaded(true);
+    }
+  }, [isEditing, id, presupuestos, presupuestosLoading, routeState, works, getNextNumero, dataLoaded]);
 
   // Redirect if empresa not complete
   useEffect(() => {
@@ -112,60 +164,40 @@ export default function PresupuestoEditor() {
     }
   }, [empresaLoading, isEmpresaComplete, user, navigate]);
 
-  if (authLoading || empresaLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  // Handle auth redirect
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [authLoading, user, navigate]);
 
-  if (!user) {
-    navigate('/auth');
-    return null;
-  }
-
+  // === FORM HANDLERS (all use local state only) ===
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleClientSelect = (clientId: string) => {
-    const client = clients.find(c => c.id === clientId);
-    if (client) {
-      setFormData(prev => ({
-        ...prev,
-        cliente_nombre: client.name,
-        cliente_nif: client.nif || '',
-        cliente_email: client.email || '',
-        cliente_telefono: client.phone || '',
-        cliente_direccion: client.address || '',
-        cliente_cp: client.postal_code || '',
-        cliente_ciudad: client.city || '',
-        cliente_provincia: client.province || '',
-      }));
-    }
-  };
-
   const updatePartida = (index: number, field: keyof Partida, value: string | number) => {
-    const newPartidas = [...formData.partidas];
-    newPartidas[index] = { ...newPartidas[index], [field]: value };
-    
-    // Recalculate line total
-    if (field === 'cantidad' || field === 'precio_unidad') {
-      const cantidad = field === 'cantidad' ? Number(value) : newPartidas[index].cantidad;
-      const precio = field === 'precio_unidad' ? Number(value) : newPartidas[index].precio_unidad;
-      newPartidas[index].importe_linea = cantidad * precio;
-    }
-    
-    setFormData(prev => ({ ...prev, partidas: newPartidas }));
+    setFormData(prev => {
+      const newPartidas = [...prev.partidas];
+      newPartidas[index] = { ...newPartidas[index], [field]: value };
+      
+      // Recalculate line total
+      if (field === 'cantidad' || field === 'precio_unidad') {
+        const cantidad = field === 'cantidad' ? Number(value) : newPartidas[index].cantidad;
+        const precio = field === 'precio_unidad' ? Number(value) : newPartidas[index].precio_unidad;
+        newPartidas[index].importe_linea = cantidad * precio;
+      }
+      
+      return { ...prev, partidas: newPartidas };
+    });
   };
 
   const addPartida = () => {
-    // Use crypto.randomUUID() for stable React keys - prevents re-render issues
     setFormData(prev => ({
       ...prev,
-      partidas: [...prev.partidas, { id: crypto.randomUUID(), concepto: '', cantidad: 1, precio_unidad: 0, importe_linea: 0 }],
+      partidas: [...prev.partidas, createEmptyPartida()],
     }));
   };
 
@@ -178,7 +210,7 @@ export default function PresupuestoEditor() {
     }
   };
 
-  // Real-time calculated totals with useMemo for performance
+  // Real-time calculated totals
   const { subtotal, iva_importe, total } = useMemo(() => {
     const sub = formData.partidas.reduce((sum, p) => sum + (p.importe_linea || 0), 0);
     const iva = sub * (formData.iva_porcentaje / 100);
@@ -189,7 +221,8 @@ export default function PresupuestoEditor() {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(value);
   };
 
-  // Generate PDF and show in modal (no popup blocking)
+  // === PDF HANDLERS ===
+  
   const handlePreviewPdf = useCallback(async () => {
     if (!empresa) {
       toast.error('Falta configurar los datos de empresa');
@@ -223,12 +256,11 @@ export default function PresupuestoEditor() {
         total,
       });
       
-      // Show in modal instead of new tab (avoids popup blockers)
       setPdfBlob(blob);
       setPdfModalOpen(true);
     } catch (err) {
       console.error('Error generating PDF:', err);
-      toast.error('Error al generar el PDF: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+      toast.error('Error al generar el PDF');
     } finally {
       setGeneratingPdf(false);
     }
@@ -272,12 +304,14 @@ export default function PresupuestoEditor() {
       toast.success('PDF descargado correctamente');
     } catch (err) {
       console.error('Error generating PDF:', err);
-      toast.error('Error al generar el PDF: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+      toast.error('Error al generar el PDF');
     } finally {
       setGeneratingPdf(false);
     }
   }, [empresa, formData, subtotal, iva_importe, total]);
 
+  // === SAVE HANDLER ===
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -290,10 +324,8 @@ export default function PresupuestoEditor() {
         await createPresupuesto.mutateAsync(formData);
         toast.success('Presupuesto creado');
       }
-      // Navigate back to dashboard since /presupuestos is removed
       navigate('/');
     } catch (err) {
-      // Show specific error message from Supabase
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       toast.error(`Error al guardar: ${errorMessage}`);
     } finally {
@@ -301,10 +333,25 @@ export default function PresupuestoEditor() {
     }
   };
 
+  // === RENDER ===
+  
+  if (authLoading || empresaLoading || presupuestosLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
   const isFormValid = formData.cliente_nombre && formData.obra_titulo && formData.partidas.length > 0;
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-4">
@@ -360,9 +407,11 @@ export default function PresupuestoEditor() {
         </div>
       </header>
 
+      {/* Main Form */}
       <main className="container max-w-3xl px-4 py-6">
         <form id="presupuesto-form" onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
+          
+          {/* Basic Info Card */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-base">Información básica</CardTitle>
@@ -444,30 +493,12 @@ export default function PresupuestoEditor() {
             </CardContent>
           </Card>
 
-          {/* Client */}
+          {/* Client Data Card - NO CLIENT SELECTOR - Direct inputs only */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-base">Datos del cliente</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {clients.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Seleccionar cliente existente</Label>
-                  <Select onValueChange={handleClientSelect}>
-                    <SelectTrigger className="bg-muted border-border h-12">
-                      <SelectValue placeholder="Elegir cliente..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      {clients.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name} {c.nif ? `(${c.nif})` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Nombre del cliente *</Label>
@@ -561,7 +592,7 @@ export default function PresupuestoEditor() {
             </CardContent>
           </Card>
 
-          {/* Description */}
+          {/* Description Card */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-base">Descripción del trabajo</CardTitle>
@@ -578,7 +609,7 @@ export default function PresupuestoEditor() {
             </CardContent>
           </Card>
 
-          {/* Partidas - Mobile Optimized */}
+          {/* Partidas Card */}
           <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base">Partidas</CardTitle>
@@ -586,7 +617,6 @@ export default function PresupuestoEditor() {
             <CardContent className="space-y-4">
               {formData.partidas.map((partida, index) => (
                 <div key={partida.id || index} className="p-4 rounded-lg bg-muted/30 border border-border space-y-3">
-                  {/* Mobile: Stack vertically, Desktop: Grid */}
                   <div className="space-y-2">
                     <Label className="text-xs font-medium">Concepto</Label>
                     <Input
@@ -630,7 +660,6 @@ export default function PresupuestoEditor() {
                     </div>
                   </div>
                   
-                  {/* Delete button - more visible on mobile */}
                   <Button 
                     type="button" 
                     variant="outline"
@@ -645,7 +674,7 @@ export default function PresupuestoEditor() {
                 </div>
               ))}
 
-              {/* Large Add Button - Mobile Optimized */}
+              {/* Add Partida Button - Instant local state update */}
               <Button 
                 type="button" 
                 variant="outline" 
@@ -686,7 +715,7 @@ export default function PresupuestoEditor() {
         </form>
       </main>
 
-      {/* PDF Preview Modal - No popup blocking */}
+      {/* PDF Preview Modal - Internal, no popup blocking */}
       <PdfPreviewModal
         isOpen={pdfModalOpen}
         onClose={() => setPdfModalOpen(false)}
