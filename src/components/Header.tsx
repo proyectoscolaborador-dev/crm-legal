@@ -35,13 +35,13 @@ export function Header({ onNewWork, onImportCSV, onToggleMobileMenu }: HeaderPro
 
         <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={onImportCSV}
-            className="hidden sm:flex gap-2 text-muted-foreground hover:text-foreground"
+            className="gap-2 border-border text-foreground hover:bg-muted"
           >
             <Upload className="w-4 h-4" />
-            <span className="hidden md:inline">Importar CSV</span>
+            <span className="hidden sm:inline">Importar CSV</span>
           </Button>
 
           <Button
