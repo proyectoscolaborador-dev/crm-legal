@@ -60,6 +60,7 @@ export default function PresupuestoEditor() {
     validez_dias: 30,
     comercial_nombre: '',
     work_id: null,
+    pdf_url: null,
   });
 
   // Load existing presupuesto if editing
@@ -85,6 +86,7 @@ export default function PresupuestoEditor() {
           validez_dias: existing.validez_dias,
           comercial_nombre: existing.comercial_nombre || '',
           work_id: existing.work_id,
+          pdf_url: existing.pdf_url,
         });
       }
     } else if (!isEditing) {

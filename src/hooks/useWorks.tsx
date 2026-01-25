@@ -70,15 +70,17 @@ export function useWorks() {
           user_id: user.id,
           is_paid: false,
         })
-        .select()
+        .select(`
+          *,
+          client:clients(*)
+        `)
         .single();
       
       if (error) throw error;
-      return data;
+      return data as WorkWithClient;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['works'] });
-      toast.success('Trabajo creado correctamente');
     },
     onError: (error) => {
       toast.error('Error al crear trabajo: ' + error.message);
