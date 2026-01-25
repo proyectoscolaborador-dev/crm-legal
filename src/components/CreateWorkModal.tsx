@@ -22,18 +22,32 @@ import {
 import { Plus, User, Loader2, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+// Extended work data including client fields for direct presupuesto sync
+export interface WorkWithClientData {
+  client_id: string;
+  title: string;
+  description: string | null;
+  amount: number;
+  status: WorkStatus;
+  position: number;
+  // Client data for direct presupuesto population (avoids lookup timing issues)
+  clientData: {
+    name: string;
+    email: string | null;
+    phone: string | null;
+    nif: string | null;
+    address: string | null;
+    postal_code: string | null;
+    city: string | null;
+    province: string | null;
+  };
+}
+
 interface CreateWorkModalProps {
   isOpen: boolean;
   onClose: () => void;
   clients: Client[];
-  onCreateWork: (work: {
-    client_id: string;
-    title: string;
-    description: string | null;
-    amount: number;
-    status: WorkStatus;
-    position: number;
-  }) => void;
+  onCreateWork: (work: WorkWithClientData) => void;
   onCreateClient: (client: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<Client> | void;
   isLoading?: boolean;
 }
@@ -187,6 +201,7 @@ export function CreateWorkModal({
       return;
     }
 
+    // Pass current form data directly - avoids cache timing issues
     onCreateWork({
       client_id: finalClientId,
       title,
@@ -194,6 +209,16 @@ export function CreateWorkModal({
       amount: parseFloat(amount) || 0,
       status: 'presupuesto_solicitado',
       position: 0,
+      clientData: {
+        name: manualClientName,
+        email: manualClientEmail || null,
+        phone: manualClientPhone || null,
+        nif: manualClientNif || null,
+        address: manualClientAddress || null,
+        postal_code: manualClientPostalCode || null,
+        city: manualClientCity || null,
+        province: manualClientProvince || null,
+      },
     });
 
     handleClose();

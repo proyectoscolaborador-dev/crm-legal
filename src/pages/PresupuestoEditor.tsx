@@ -46,7 +46,7 @@ export default function PresupuestoEditor() {
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   
-  // Initialize with empty object to prevent undefined errors
+  // Initialize with empty object to prevent undefined errors - all strings empty, never null
   const [formData, setFormData] = useState<PresupuestoFormData>({
     numero_presupuesto: '',
     cliente_nombre: '',
@@ -58,7 +58,7 @@ export default function PresupuestoEditor() {
     cliente_provincia: '',
     descripcion_trabajo_larga: '',
     obra_titulo: '',
-    partidas: [{ concepto: '', cantidad: 1, precio_unidad: 0, importe_linea: 0 }],
+    partidas: [{ id: crypto.randomUUID(), concepto: '', cantidad: 1, precio_unidad: 0, importe_linea: 0 }],
     iva_porcentaje: 21,
     estado_presupuesto: 'borrador',
     fecha_presupuesto: new Date().toISOString().split('T')[0],
@@ -84,7 +84,8 @@ export default function PresupuestoEditor() {
           cliente_provincia: existing.cliente_provincia || '',
           descripcion_trabajo_larga: existing.descripcion_trabajo_larga || '',
           obra_titulo: existing.obra_titulo,
-          partidas: existing.partidas || [],
+          // Ensure each partida has a stable ID for React keys
+          partidas: (existing.partidas || []).map(p => ({ ...p, id: p.id || crypto.randomUUID() })),
           iva_porcentaje: existing.iva_porcentaje,
           estado_presupuesto: existing.estado_presupuesto,
           fecha_presupuesto: existing.fecha_presupuesto,
@@ -158,9 +159,10 @@ export default function PresupuestoEditor() {
   };
 
   const addPartida = () => {
+    // Use crypto.randomUUID() for stable React keys - prevents re-render issues
     setFormData(prev => ({
       ...prev,
-      partidas: [...prev.partidas, { concepto: '', cantidad: 1, precio_unidad: 0, importe_linea: 0 }],
+      partidas: [...prev.partidas, { id: crypto.randomUUID(), concepto: '', cantidad: 1, precio_unidad: 0, importe_linea: 0 }],
     }));
   };
 
@@ -369,8 +371,7 @@ export default function PresupuestoEditor() {
                     name="numero_presupuesto"
                     value={formData.numero_presupuesto}
                     onChange={handleChange}
-                    className="bg-muted border-border font-mono"
-                    readOnly
+                    className="bg-muted border-border font-mono h-12"
                   />
                 </div>
                 <div className="space-y-2">
@@ -570,7 +571,7 @@ export default function PresupuestoEditor() {
             </CardHeader>
             <CardContent className="space-y-4">
               {formData.partidas.map((partida, index) => (
-                <div key={index} className="p-4 rounded-lg bg-muted/30 border border-border space-y-3">
+                <div key={partida.id || index} className="p-4 rounded-lg bg-muted/30 border border-border space-y-3">
                   {/* Mobile: Stack vertically, Desktop: Grid */}
                   <div className="space-y-2">
                     <Label className="text-xs font-medium">Concepto</Label>

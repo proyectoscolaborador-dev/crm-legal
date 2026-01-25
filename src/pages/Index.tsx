@@ -6,6 +6,7 @@ import { useWorks } from '@/hooks/useWorks';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { usePresupuestos } from '@/hooks/usePresupuestos';
 import { WorkWithClient, WorkStatus, Client } from '@/types/database';
+import { WorkWithClientData } from '@/components/CreateWorkModal';
 import { Header } from '@/components/Header';
 import { Dashboard } from '@/components/Dashboard';
 import { AlertsSection } from '@/components/AlertsSection';
@@ -104,48 +105,33 @@ export default function Index() {
     return result as Client;
   };
 
-  const handleCreateWorkWithPresupuesto = async (workData: {
-    client_id: string;
-    title: string;
-    description: string | null;
-    amount: number;
-    status: WorkStatus;
-    position: number;
-  }) => {
-    // Get client data for presupuesto - with fallback to empty object
-    const client = clients.find((c: Client) => c.id === workData.client_id) || {
-      id: workData.client_id,
-      name: '',
-      email: null,
-      phone: null,
-      address: null,
-      postal_code: null,
-      city: null,
-      province: null,
-      nif: null,
-      company: null,
-      country: 'España',
-      notes: null,
-    };
-
+  // Uses data directly from the form, not from database lookup
+  const handleCreateWorkWithPresupuesto = async (workData: WorkWithClientData) => {
     setIsCreatingWork(true);
 
     try {
       // Create work first
-      const newWork = await createWork.mutateAsync(workData);
+      const newWork = await createWork.mutateAsync({
+        client_id: workData.client_id,
+        title: workData.title,
+        description: workData.description,
+        amount: workData.amount,
+        status: workData.status,
+        position: workData.position,
+      });
       
-      // Auto-create presupuesto in borrador linked to this work
-      // Pass ALL client fields explicitly to avoid sync issues
+      // Auto-create presupuesto using CLIENT DATA FROM FORM (not from DB lookup)
+      // This avoids timing issues where the client isn't in the cache yet
       await createPresupuesto.mutateAsync({
         numero_presupuesto: getNextNumero(),
-        cliente_nombre: client.name || 'Sin nombre',
-        cliente_email: client.email || null,
-        cliente_telefono: client.phone || null,
-        cliente_direccion: client.address || null,
-        cliente_cp: client.postal_code || null,
-        cliente_ciudad: client.city || null,
-        cliente_provincia: client.province || null,
-        descripcion_trabajo_larga: workData.description || null,
+        cliente_nombre: workData.clientData.name || 'Sin nombre',
+        cliente_email: workData.clientData.email,
+        cliente_telefono: workData.clientData.phone,
+        cliente_direccion: workData.clientData.address,
+        cliente_cp: workData.clientData.postal_code,
+        cliente_ciudad: workData.clientData.city,
+        cliente_provincia: workData.clientData.province,
+        descripcion_trabajo_larga: workData.description,
         obra_titulo: workData.title,
         partidas: [],
         iva_porcentaje: 21,

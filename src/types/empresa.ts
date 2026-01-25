@@ -18,6 +18,7 @@ export interface EmpresaUsuario {
 }
 
 export interface Partida {
+  id?: string; // Optional for backwards compatibility, added for stable React keys
   concepto: string;
   cantidad: number;
   precio_unidad: number;
