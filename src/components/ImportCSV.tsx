@@ -9,7 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ImportCSVProps {
@@ -21,6 +21,12 @@ interface ImportCSVProps {
     phone: string | null;
     company: string | null;
     notes: string | null;
+    nif: string | null;
+    address: string | null;
+    postal_code: string | null;
+    city: string | null;
+    province: string | null;
+    country: string | null;
   }>) => void;
 }
 
@@ -35,6 +41,21 @@ interface CSVRow {
   company?: string;
   notas?: string;
   notes?: string;
+  nif?: string;
+  cif?: string;
+  dni?: string;
+  direccion?: string;
+  address?: string;
+  cp?: string;
+  codigo_postal?: string;
+  postal_code?: string;
+  ciudad?: string;
+  city?: string;
+  localidad?: string;
+  provincia?: string;
+  province?: string;
+  pais?: string;
+  country?: string;
 }
 
 export function ImportCSV({ isOpen, onClose, onImport }: ImportCSVProps) {
@@ -71,6 +92,12 @@ export function ImportCSV({ isOpen, onClose, onImport }: ImportCSVProps) {
       phone: row.telefono || row.phone || null,
       company: row.empresa || row.company || null,
       notes: row.notas || row.notes || null,
+      nif: row.nif || row.cif || row.dni || null,
+      address: row.direccion || row.address || null,
+      postal_code: row.cp || row.codigo_postal || row.postal_code || null,
+      city: row.ciudad || row.city || row.localidad || null,
+      province: row.provincia || row.province || null,
+      country: row.pais || row.country || 'España',
     }));
 
     onImport(clients);
@@ -95,7 +122,7 @@ export function ImportCSV({ isOpen, onClose, onImport }: ImportCSVProps) {
             Importar Clientes desde CSV
           </DialogTitle>
           <DialogDescription>
-            Sube un archivo CSV con las columnas: nombre, email, telefono, empresa, notas
+            Columnas soportadas: nombre, email, telefono, empresa, nif/cif/dni, direccion, cp, ciudad, provincia, pais, notas
           </DialogDescription>
         </DialogHeader>
 
@@ -137,8 +164,8 @@ export function ImportCSV({ isOpen, onClose, onImport }: ImportCSVProps) {
                     <thead>
                       <tr className="border-b border-border">
                         <th className="text-left py-2 text-muted-foreground">Nombre</th>
-                        <th className="text-left py-2 text-muted-foreground">Email</th>
-                        <th className="text-left py-2 text-muted-foreground">Teléfono</th>
+                        <th className="text-left py-2 text-muted-foreground">NIF</th>
+                        <th className="text-left py-2 text-muted-foreground">Ciudad</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -148,10 +175,10 @@ export function ImportCSV({ isOpen, onClose, onImport }: ImportCSVProps) {
                             {row.nombre || row.name || '-'}
                           </td>
                           <td className="py-2 text-foreground">
-                            {row.email || row.correo || '-'}
+                            {row.nif || row.cif || row.dni || '-'}
                           </td>
                           <td className="py-2 text-foreground">
-                            {row.telefono || row.phone || '-'}
+                            {row.ciudad || row.city || row.localidad || '-'}
                           </td>
                         </tr>
                       ))}

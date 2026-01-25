@@ -131,6 +131,10 @@ export default function PresupuestoEditor() {
         cliente_nombre: client.name,
         cliente_email: client.email || '',
         cliente_telefono: client.phone || '',
+        cliente_direccion: client.address || '',
+        cliente_cp: client.postal_code || '',
+        cliente_ciudad: client.city || '',
+        cliente_provincia: client.province || '',
       }));
     }
   };
@@ -438,12 +442,14 @@ export default function PresupuestoEditor() {
                 <div className="space-y-2">
                   <Label>Seleccionar cliente existente</Label>
                   <Select onValueChange={handleClientSelect}>
-                    <SelectTrigger className="bg-muted border-border">
+                    <SelectTrigger className="bg-muted border-border h-12">
                       <SelectValue placeholder="Elegir cliente..." />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
                       {clients.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name} {c.nif ? `(${c.nif})` : ''}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -458,7 +464,7 @@ export default function PresupuestoEditor() {
                     value={formData.cliente_nombre}
                     onChange={handleChange}
                     placeholder="Nombre completo"
-                    className="bg-muted border-border"
+                    className="bg-muted border-border h-12"
                     required
                   />
                 </div>
@@ -470,7 +476,7 @@ export default function PresupuestoEditor() {
                     value={formData.cliente_email || ''}
                     onChange={handleChange}
                     placeholder="email@cliente.com"
-                    className="bg-muted border-border"
+                    className="bg-muted border-border h-12"
                   />
                 </div>
                 <div className="space-y-2">
@@ -480,7 +486,8 @@ export default function PresupuestoEditor() {
                     value={formData.cliente_telefono || ''}
                     onChange={handleChange}
                     placeholder="+34 600 000 000"
-                    className="bg-muted border-border"
+                    className="bg-muted border-border h-12"
+                    inputMode="tel"
                   />
                 </div>
               </div>
@@ -492,7 +499,7 @@ export default function PresupuestoEditor() {
                   value={formData.cliente_direccion || ''}
                   onChange={handleChange}
                   placeholder="Calle, número..."
-                  className="bg-muted border-border"
+                  className="bg-muted border-border h-12"
                 />
               </div>
 
@@ -503,7 +510,9 @@ export default function PresupuestoEditor() {
                     name="cliente_cp"
                     value={formData.cliente_cp || ''}
                     onChange={handleChange}
-                    className="bg-muted border-border"
+                    className="bg-muted border-border h-12"
+                    inputMode="numeric"
+                    placeholder="28001"
                   />
                 </div>
                 <div className="space-y-2">
@@ -512,7 +521,8 @@ export default function PresupuestoEditor() {
                     name="cliente_ciudad"
                     value={formData.cliente_ciudad || ''}
                     onChange={handleChange}
-                    className="bg-muted border-border"
+                    className="bg-muted border-border h-12"
+                    placeholder="Madrid"
                   />
                 </div>
                 <div className="space-y-2">
@@ -521,7 +531,8 @@ export default function PresupuestoEditor() {
                     name="cliente_provincia"
                     value={formData.cliente_provincia || ''}
                     onChange={handleChange}
-                    className="bg-muted border-border"
+                    className="bg-muted border-border h-12"
+                    placeholder="Madrid"
                   />
                 </div>
               </div>

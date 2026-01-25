@@ -3,7 +3,7 @@ import { Client, WorkWithClient } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Phone, Mail, Building2, Search, Trash2, Edit, Save, X } from 'lucide-react';
+import { Phone, Mail, Building2, Search, Trash2, Edit, Save, X, MapPin, FileText } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ClientsListProps {
   clients: Client[];
@@ -28,6 +29,12 @@ export function ClientsList({ clients, works, onDeleteClient, onUpdateClient }: 
     email: '',
     phone: '',
     company: '',
+    nif: '',
+    address: '',
+    postal_code: '',
+    city: '',
+    province: '',
+    country: '',
     notes: '',
   });
 
@@ -35,7 +42,9 @@ export function ClientsList({ clients, works, onDeleteClient, onUpdateClient }: 
     client.name.toLowerCase().includes(search.toLowerCase()) ||
     client.email?.toLowerCase().includes(search.toLowerCase()) ||
     client.company?.toLowerCase().includes(search.toLowerCase()) ||
-    client.phone?.includes(search)
+    client.phone?.includes(search) ||
+    client.nif?.toLowerCase().includes(search.toLowerCase()) ||
+    client.city?.toLowerCase().includes(search.toLowerCase())
   );
 
   const getClientLTV = (clientId: string) => {
@@ -58,6 +67,12 @@ export function ClientsList({ clients, works, onDeleteClient, onUpdateClient }: 
       email: client.email || '',
       phone: client.phone || '',
       company: client.company || '',
+      nif: client.nif || '',
+      address: client.address || '',
+      postal_code: client.postal_code || '',
+      city: client.city || '',
+      province: client.province || '',
+      country: client.country || 'España',
       notes: client.notes || '',
     });
   };
@@ -70,9 +85,20 @@ export function ClientsList({ clients, works, onDeleteClient, onUpdateClient }: 
       email: editForm.email || null,
       phone: editForm.phone || null,
       company: editForm.company || null,
+      nif: editForm.nif || null,
+      address: editForm.address || null,
+      postal_code: editForm.postal_code || null,
+      city: editForm.city || null,
+      province: editForm.province || null,
+      country: editForm.country || null,
       notes: editForm.notes || null,
     });
     setEditingClient(null);
+  };
+
+  const formatAddress = (client: Client) => {
+    const parts = [client.city, client.province].filter(Boolean);
+    return parts.join(', ');
   };
 
   return (
@@ -82,7 +108,7 @@ export function ClientsList({ clients, works, onDeleteClient, onUpdateClient }: 
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nombre, email, teléfono o empresa..."
+          placeholder="Buscar por nombre, NIF, email, teléfono, ciudad..."
           className="pl-10 bg-muted border-border h-12"
         />
       </div>
@@ -91,6 +117,7 @@ export function ClientsList({ clients, works, onDeleteClient, onUpdateClient }: 
         {filteredClients.map((client) => {
           const ltv = getClientLTV(client.id);
           const workCount = works.filter(w => w.client_id === client.id).length;
+          const addressDisplay = formatAddress(client);
 
           return (
             <div
@@ -104,6 +131,12 @@ export function ClientsList({ clients, works, onDeleteClient, onUpdateClient }: 
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
                       <Building2 className="w-3 h-3" />
                       {client.company}
+                    </p>
+                  )}
+                  {client.nif && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <FileText className="w-3 h-3" />
+                      {client.nif}
                     </p>
                   )}
                 </div>
@@ -142,6 +175,12 @@ export function ClientsList({ clients, works, onDeleteClient, onUpdateClient }: 
                     {client.phone}
                   </p>
                 )}
+                {addressDisplay && (
+                  <p className="text-muted-foreground flex items-center gap-2">
+                    <MapPin className="w-3 h-3" />
+                    {addressDisplay}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-border">
@@ -167,65 +206,135 @@ export function ClientsList({ clients, works, onDeleteClient, onUpdateClient }: 
 
       {/* Edit Client Modal */}
       <Dialog open={!!editingClient} onOpenChange={() => setEditingClient(null)}>
-        <DialogContent className="bg-card border-border sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="bg-card border-border sm:max-w-lg max-h-[90vh] p-0">
+          <DialogHeader className="p-6 pb-0">
             <DialogTitle className="text-foreground flex items-center gap-2">
               <Edit className="w-5 h-5 text-primary" />
               Editar Cliente
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Nombre *</Label>
-              <Input
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                className="bg-muted border-border h-12"
-              />
-            </div>
+          <ScrollArea className="max-h-[60vh] px-6">
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nombre *</Label>
+                <Input
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="bg-muted border-border h-12"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                className="bg-muted border-border h-12"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>NIF / CIF / DNI</Label>
+                <Input
+                  value={editForm.nif}
+                  onChange={(e) => setEditForm({ ...editForm, nif: e.target.value })}
+                  className="bg-muted border-border h-12"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Teléfono</Label>
-              <Input
-                value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                className="bg-muted border-border h-12"
-                inputMode="tel"
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    className="bg-muted border-border h-12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Teléfono</Label>
+                  <Input
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    className="bg-muted border-border h-12"
+                    inputMode="tel"
+                  />
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label>Empresa</Label>
-              <Input
-                value={editForm.company}
-                onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
-                className="bg-muted border-border h-12"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>Empresa</Label>
+                <Input
+                  value={editForm.company}
+                  onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
+                  className="bg-muted border-border h-12"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Notas</Label>
-              <Textarea
-                value={editForm.notes}
-                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                className="bg-muted border-border resize-none"
-                rows={3}
-              />
-            </div>
-          </div>
+              {/* Address Section */}
+              <div className="pt-2 border-t border-border">
+                <p className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-3">
+                  <MapPin className="w-4 h-4" />
+                  Dirección
+                </p>
+                
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Dirección completa</Label>
+                    <Input
+                      value={editForm.address}
+                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                      className="bg-muted border-border h-12"
+                    />
+                  </div>
 
-          <DialogFooter>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Código Postal</Label>
+                      <Input
+                        value={editForm.postal_code}
+                        onChange={(e) => setEditForm({ ...editForm, postal_code: e.target.value })}
+                        className="bg-muted border-border h-12"
+                        inputMode="numeric"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Ciudad</Label>
+                      <Input
+                        value={editForm.city}
+                        onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                        className="bg-muted border-border h-12"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Provincia</Label>
+                      <Input
+                        value={editForm.province}
+                        onChange={(e) => setEditForm({ ...editForm, province: e.target.value })}
+                        className="bg-muted border-border h-12"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>País</Label>
+                      <Input
+                        value={editForm.country}
+                        onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                        className="bg-muted border-border h-12"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notas</Label>
+                <Textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  className="bg-muted border-border resize-none"
+                  rows={3}
+                />
+              </div>
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="p-6 pt-4 border-t border-border">
             <Button variant="ghost" onClick={() => setEditingClient(null)}>
               <X className="w-4 h-4 mr-2" />
               Cancelar

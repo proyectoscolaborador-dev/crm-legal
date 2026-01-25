@@ -1,0 +1,8 @@
+-- Add professional client fields
+ALTER TABLE public.clients 
+ADD COLUMN IF NOT EXISTS nif TEXT,
+ADD COLUMN IF NOT EXISTS address TEXT,
+ADD COLUMN IF NOT EXISTS postal_code TEXT,
+ADD COLUMN IF NOT EXISTS city TEXT,
+ADD COLUMN IF NOT EXISTS province TEXT,
+ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'España';
