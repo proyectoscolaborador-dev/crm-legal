@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Plus, Upload, LogOut, Menu } from 'lucide-react';
+import { Plus, Upload, LogOut, Menu, FileText, Building2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   onNewWork: () => void;
@@ -9,7 +10,8 @@ interface HeaderProps {
 }
 
 export function Header({ onNewWork, onImportCSV, onToggleMobileMenu }: HeaderProps) {
-  const { signOut, user } = useAuth();
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -34,6 +36,26 @@ export function Header({ onNewWork, onImportCSV, onToggleMobileMenu }: HeaderPro
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/mis-datos-empresa')}
+            className="hidden sm:flex gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <Building2 className="w-4 h-4" />
+            <span className="hidden md:inline">Mi Empresa</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/presupuestos')}
+            className="gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">Presupuestos</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"

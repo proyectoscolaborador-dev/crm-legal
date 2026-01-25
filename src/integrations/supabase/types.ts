@@ -50,6 +50,155 @@ export type Database = {
         }
         Relationships: []
       }
+      empresa_usuario: {
+        Row: {
+          condiciones_generales: string | null
+          created_at: string
+          empresa_cif: string
+          empresa_ciudad: string
+          empresa_cp: string
+          empresa_direccion: string
+          empresa_email: string
+          empresa_logo_url: string | null
+          empresa_nombre: string
+          empresa_provincia: string
+          empresa_razon_social: string | null
+          empresa_telefono: string
+          empresa_web: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          condiciones_generales?: string | null
+          created_at?: string
+          empresa_cif: string
+          empresa_ciudad: string
+          empresa_cp: string
+          empresa_direccion: string
+          empresa_email: string
+          empresa_logo_url?: string | null
+          empresa_nombre: string
+          empresa_provincia: string
+          empresa_razon_social?: string | null
+          empresa_telefono: string
+          empresa_web?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          condiciones_generales?: string | null
+          created_at?: string
+          empresa_cif?: string
+          empresa_ciudad?: string
+          empresa_cp?: string
+          empresa_direccion?: string
+          empresa_email?: string
+          empresa_logo_url?: string | null
+          empresa_nombre?: string
+          empresa_provincia?: string
+          empresa_razon_social?: string | null
+          empresa_telefono?: string
+          empresa_web?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      presupuestos: {
+        Row: {
+          cliente_ciudad: string | null
+          cliente_cp: string | null
+          cliente_direccion: string | null
+          cliente_email: string | null
+          cliente_nombre: string
+          cliente_provincia: string | null
+          cliente_telefono: string | null
+          comercial_nombre: string | null
+          created_at: string
+          descripcion_trabajo_larga: string | null
+          estado_presupuesto: string
+          fecha_presupuesto: string
+          id: string
+          iva_importe: number
+          iva_porcentaje: number
+          numero_presupuesto: string
+          obra_titulo: string
+          partidas: Json
+          pdf_url: string | null
+          subtotal: number
+          total_presupuesto: number
+          updated_at: string
+          user_id: string
+          validez_dias: number
+          work_id: string | null
+        }
+        Insert: {
+          cliente_ciudad?: string | null
+          cliente_cp?: string | null
+          cliente_direccion?: string | null
+          cliente_email?: string | null
+          cliente_nombre: string
+          cliente_provincia?: string | null
+          cliente_telefono?: string | null
+          comercial_nombre?: string | null
+          created_at?: string
+          descripcion_trabajo_larga?: string | null
+          estado_presupuesto?: string
+          fecha_presupuesto?: string
+          id?: string
+          iva_importe?: number
+          iva_porcentaje?: number
+          numero_presupuesto: string
+          obra_titulo: string
+          partidas?: Json
+          pdf_url?: string | null
+          subtotal?: number
+          total_presupuesto?: number
+          updated_at?: string
+          user_id: string
+          validez_dias?: number
+          work_id?: string | null
+        }
+        Update: {
+          cliente_ciudad?: string | null
+          cliente_cp?: string | null
+          cliente_direccion?: string | null
+          cliente_email?: string | null
+          cliente_nombre?: string
+          cliente_provincia?: string | null
+          cliente_telefono?: string | null
+          comercial_nombre?: string | null
+          created_at?: string
+          descripcion_trabajo_larga?: string | null
+          estado_presupuesto?: string
+          fecha_presupuesto?: string
+          id?: string
+          iva_importe?: number
+          iva_porcentaje?: number
+          numero_presupuesto?: string
+          obra_titulo?: string
+          partidas?: Json
+          pdf_url?: string | null
+          subtotal?: number
+          total_presupuesto?: number
+          updated_at?: string
+          user_id?: string
+          validez_dias?: number
+          work_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuestos_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "works"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       works: {
         Row: {
           amount: number
