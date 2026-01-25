@@ -53,4 +53,5 @@ export interface Presupuesto {
 }
 
 export type EmpresaFormData = Omit<EmpresaUsuario, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
-export type PresupuestoFormData = Omit<Presupuesto, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'subtotal' | 'iva_importe' | 'total_presupuesto' | 'pdf_url'>;
+export type PresupuestoFormData = Omit<Presupuesto, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'subtotal' | 'iva_importe' | 'total_presupuesto'>;
+export type PresupuestoUpdateData = Partial<Omit<Presupuesto, 'id' | 'user_id' | 'created_at' | 'updated_at'>> & { id: string };

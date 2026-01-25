@@ -1,6 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { WorkWithClient, Client } from '@/types/database';
 import { useWorks } from '@/hooks/useWorks';
+import { usePresupuestos } from '@/hooks/usePresupuestos';
+import { useEmpresa } from '@/hooks/useEmpresa';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,11 +21,16 @@ import {
   Calendar,
   CheckCircle,
   X,
-  ExternalLink
+  ExternalLink,
+  Edit,
+  Send,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ClientPanelProps {
   work: WorkWithClient | null;
@@ -33,12 +41,19 @@ interface ClientPanelProps {
 }
 
 export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: ClientPanelProps) {
-  const { markAsPaid } = useWorks();
+  const navigate = useNavigate();
+  const { markAsPaid, updateWorkStatus } = useWorks();
+  const { presupuestos, updatePresupuesto } = usePresupuestos();
+  const { empresa, isEmpresaComplete } = useEmpresa();
   const [editedWork, setEditedWork] = useState<Partial<WorkWithClient>>({});
+  const [isSendingPresupuesto, setIsSendingPresupuesto] = useState(false);
 
   if (!work) return null;
 
   const client = work.client;
+
+  // Find presupuesto linked to this work
+  const linkedPresupuesto = presupuestos.find(p => p.work_id === work.id);
 
   // Calculate LTV
   const clientWorks = allWorks.filter(w => w.client_id === work.client_id);
@@ -63,32 +78,84 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
   };
 
-  const handleGeneratePDF = () => {
-    // Generate a simple budget text for now
-    const budgetText = `
-PRESUPUESTO
+  const handleEditPresupuesto = () => {
+    if (!isEmpresaComplete) {
+      toast.error('Debes completar los datos de tu empresa primero');
+      navigate('/mis-datos-empresa', { state: { returnTo: '/' } });
+      return;
+    }
 
-Cliente: ${client?.name}
-Empresa: ${client?.company || 'N/A'}
-Fecha: ${format(new Date(), 'dd/MM/yyyy')}
+    if (linkedPresupuesto) {
+      navigate(`/presupuestos/${linkedPresupuesto.id}`);
+    } else {
+      // No presupuesto linked, create one first
+      navigate('/presupuestos/nuevo', { state: { workId: work.id, client } });
+    }
+    onClose();
+  };
 
-Concepto: ${work.title}
-${work.description ? `Descripción: ${work.description}` : ''}
+  const handleSendPresupuesto = async () => {
+    if (!isEmpresaComplete) {
+      toast.error('Debes completar los datos de tu empresa primero');
+      navigate('/mis-datos-empresa', { state: { returnTo: '/' } });
+      return;
+    }
 
-Importe: ${formatCurrency(Number(work.amount))}
+    if (!linkedPresupuesto) {
+      toast.error('No hay presupuesto asociado a este trabajo');
+      return;
+    }
 
----
-Presupuesto generado con Copiloto
-    `.trim();
+    if (linkedPresupuesto.subtotal === 0) {
+      toast.error('El presupuesto debe tener al menos una partida');
+      return;
+    }
 
-    const blob = new Blob([budgetText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `presupuesto-${work.title.toLowerCase().replace(/\s+/g, '-')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Presupuesto generado');
+    setIsSendingPresupuesto(true);
+
+    try {
+      // 1. Generate PDF via edge function
+      const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-presupuesto-pdf', {
+        body: { presupuestoId: linkedPresupuesto.id }
+      });
+
+      if (pdfError) throw pdfError;
+
+      // 2. Update presupuesto status and PDF URL
+      await updatePresupuesto.mutateAsync({
+        id: linkedPresupuesto.id,
+        estado_presupuesto: 'enviado',
+        pdf_url: pdfData?.pdfUrl || null,
+      });
+
+      // 3. Update work status to "presupuesto_enviado"
+      updateWorkStatus.mutate({ 
+        id: work.id, 
+        status: 'presupuesto_enviado',
+        position: work.position 
+      });
+
+      toast.success('Presupuesto enviado correctamente');
+
+      // Optional: Open WhatsApp with PDF link
+      if (pdfData?.pdfUrl && client?.phone) {
+        const message = `Hola ${client.name}, te envío el presupuesto para "${work.title}". Puedes verlo aquí: ${pdfData.pdfUrl}`;
+        openWhatsApp(message);
+      }
+    } catch (error: any) {
+      console.error('Error sending presupuesto:', error);
+      toast.error('Error al enviar presupuesto: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setIsSendingPresupuesto(false);
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (linkedPresupuesto?.pdf_url) {
+      window.open(linkedPresupuesto.pdf_url, '_blank');
+    } else {
+      toast.error('No hay PDF disponible');
+    }
   };
 
   const handleRequestReview = () => {
@@ -129,9 +196,10 @@ Presupuesto generado con Copiloto
         </SheetHeader>
 
         <Tabs defaultValue="contact" className="mt-4">
-          <TabsList className="grid w-full grid-cols-3 bg-muted">
+          <TabsList className="grid w-full grid-cols-4 bg-muted">
             <TabsTrigger value="contact">Contacto</TabsTrigger>
             <TabsTrigger value="finances">Finanzas</TabsTrigger>
+            <TabsTrigger value="presupuesto">Presupuesto</TabsTrigger>
             <TabsTrigger value="actions">Acciones</TabsTrigger>
           </TabsList>
 
@@ -265,19 +333,99 @@ Presupuesto generado con Copiloto
             </div>
           </TabsContent>
 
-          <TabsContent value="actions" className="space-y-3 mt-4">
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-12"
-              onClick={handleGeneratePDF}
-            >
-              <FileText className="w-5 h-5 text-primary" />
-              <div className="text-left">
-                <p className="font-medium">Generar PDF de Presupuesto</p>
-                <p className="text-xs text-muted-foreground">Exportar como documento</p>
+          <TabsContent value="presupuesto" className="space-y-4 mt-4">
+            {/* Presupuesto Status */}
+            <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Estado Presupuesto</p>
+                  <p className="text-xs text-muted-foreground">
+                    {linkedPresupuesto 
+                      ? `${linkedPresupuesto.estado_presupuesto.charAt(0).toUpperCase() + linkedPresupuesto.estado_presupuesto.slice(1)} - ${linkedPresupuesto.numero_presupuesto}`
+                      : 'Sin presupuesto asociado'
+                    }
+                  </p>
+                </div>
+                {linkedPresupuesto && (
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    linkedPresupuesto.estado_presupuesto === 'enviado' 
+                      ? 'bg-primary/20 text-primary' 
+                      : linkedPresupuesto.estado_presupuesto === 'aceptado'
+                      ? 'bg-secondary/20 text-secondary'
+                      : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {linkedPresupuesto.estado_presupuesto}
+                  </span>
+                )}
               </div>
-            </Button>
 
+              {linkedPresupuesto && (
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Subtotal:</span>
+                    <span className="ml-2 font-medium">{formatCurrency(linkedPresupuesto.subtotal)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">IVA:</span>
+                    <span className="ml-2 font-medium">{formatCurrency(linkedPresupuesto.iva_importe)}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Total:</span>
+                    <span className="ml-2 font-bold text-lg">{formatCurrency(linkedPresupuesto.total_presupuesto)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Presupuesto Actions */}
+            <div className="space-y-3">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-12"
+                onClick={handleEditPresupuesto}
+              >
+                <Edit className="w-5 h-5 text-primary" />
+                <div className="text-left">
+                  <p className="font-medium">Editar Presupuesto</p>
+                  <p className="text-xs text-muted-foreground">
+                    {linkedPresupuesto ? 'Modificar partidas y detalles' : 'Crear nuevo presupuesto'}
+                  </p>
+                </div>
+              </Button>
+
+              <Button
+                className="w-full justify-start gap-3 h-12 bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={handleSendPresupuesto}
+                disabled={!linkedPresupuesto || linkedPresupuesto.subtotal === 0 || isSendingPresupuesto}
+              >
+                {isSendingPresupuesto ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
+                <div className="text-left">
+                  <p className="font-medium">Enviar Presupuesto</p>
+                  <p className="text-xs opacity-80">Genera PDF y envía al cliente</p>
+                </div>
+              </Button>
+
+              {linkedPresupuesto?.pdf_url && (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-12"
+                  onClick={handleDownloadPdf}
+                >
+                  <Download className="w-5 h-5 text-secondary" />
+                  <div className="text-left">
+                    <p className="font-medium">Descargar PDF</p>
+                    <p className="text-xs text-muted-foreground">Ver documento generado</p>
+                  </div>
+                </Button>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="actions" className="space-y-3 mt-4">
             <Button
               variant="outline"
               className="w-full justify-start gap-3 h-12"

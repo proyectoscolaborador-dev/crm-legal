@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Presupuesto, PresupuestoFormData, Partida } from '@/types/empresa';
+import { Presupuesto, PresupuestoFormData, PresupuestoUpdateData, Partida } from '@/types/empresa';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
@@ -84,7 +84,9 @@ export function usePresupuestos() {
   });
 
   const updatePresupuesto = useMutation({
-    mutationFn: async ({ id, ...formData }: Partial<PresupuestoFormData> & { id: string }) => {
+    mutationFn: async (updateData: PresupuestoUpdateData) => {
+      const { id, ...formData } = updateData;
+      
       // Recalculate totals if partidas changed
       let updates: Record<string, unknown> = { ...formData };
       

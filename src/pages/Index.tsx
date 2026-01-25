@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { useWorks } from '@/hooks/useWorks';
-import { WorkWithClient, WorkStatus } from '@/types/database';
+import { useEmpresa } from '@/hooks/useEmpresa';
+import { usePresupuestos } from '@/hooks/usePresupuestos';
+import { WorkWithClient, WorkStatus, Client } from '@/types/database';
 import { Header } from '@/components/Header';
 import { Dashboard } from '@/components/Dashboard';
 import { AlertsSection } from '@/components/AlertsSection';
@@ -16,11 +19,15 @@ import { MobileNav } from '@/components/MobileNav';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Index() {
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { clients, createClient, deleteClient } = useClients();
   const { works, createWork, updateWork, updateWorkStatus } = useWorks();
+  const { empresa, isLoading: empresaLoading, isEmpresaComplete } = useEmpresa();
+  const { createPresupuesto, getNextNumero } = usePresupuestos();
 
   const [selectedWork, setSelectedWork] = useState<WorkWithClient | null>(null);
   const [isClientPanelOpen, setIsClientPanelOpen] = useState(false);
@@ -28,7 +35,7 @@ export default function Index() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('pipeline');
 
-  if (authLoading) {
+  if (authLoading || empresaLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -39,6 +46,16 @@ export default function Index() {
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
+
+  const handleNewWorkClick = () => {
+    // Check if empresa data is complete before allowing work creation
+    if (!isEmpresaComplete) {
+      toast.error('Debes completar los datos de tu empresa antes de crear trabajos');
+      navigate('/mis-datos-empresa', { state: { returnTo: '/' } });
+      return;
+    }
+    setIsCreateModalOpen(true);
+  };
 
   const handleWorkClick = (work: WorkWithClient) => {
     setSelectedWork(work);
@@ -55,10 +72,57 @@ export default function Index() {
     }
   };
 
+  const handleCreateWorkWithPresupuesto = async (workData: {
+    client_id: string;
+    title: string;
+    description: string | null;
+    amount: number;
+    status: WorkStatus;
+    position: number;
+  }) => {
+    // Get client data for presupuesto
+    const client = clients.find((c: Client) => c.id === workData.client_id);
+    if (!client) {
+      toast.error('Cliente no encontrado');
+      return;
+    }
+
+    try {
+      // Create work first
+      const newWork = await createWork.mutateAsync(workData);
+      
+      // Auto-create presupuesto in borrador linked to this work
+      await createPresupuesto.mutateAsync({
+        numero_presupuesto: getNextNumero(),
+        cliente_nombre: client.name,
+        cliente_email: client.email,
+        cliente_telefono: client.phone,
+        cliente_direccion: null,
+        cliente_cp: null,
+        cliente_ciudad: null,
+        cliente_provincia: null,
+        descripcion_trabajo_larga: workData.description,
+        obra_titulo: workData.title,
+        partidas: [],
+        iva_porcentaje: 21,
+        estado_presupuesto: 'borrador',
+        fecha_presupuesto: new Date().toISOString().split('T')[0],
+        validez_dias: 30,
+        comercial_nombre: null,
+        work_id: newWork.id,
+        pdf_url: null,
+      });
+
+      toast.success('Trabajo y presupuesto borrador creados');
+    } catch (error) {
+      console.error('Error creating work with presupuesto:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Header
-        onNewWork={() => setIsCreateModalOpen(true)}
+        onNewWork={handleNewWorkClick}
         onImportCSV={() => setIsImportOpen(true)}
       />
 
@@ -114,7 +178,7 @@ export default function Index() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         clients={clients}
-        onCreateWork={(work) => createWork.mutate(work)}
+        onCreateWork={handleCreateWorkWithPresupuesto}
         onCreateClient={(client) => createClient.mutate(client)}
       />
 
