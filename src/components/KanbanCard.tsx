@@ -1,16 +1,18 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { WorkWithClient } from '@/types/database';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock, AlertTriangle, Trash2 } from 'lucide-react';
 import { isToday, isPast, parseISO, format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Button } from '@/components/ui/button';
 
 interface KanbanCardProps {
   work: WorkWithClient;
   onClick: () => void;
+  onDelete?: (workId: string) => void;
 }
 
-export function KanbanCard({ work, onClick }: KanbanCardProps) {
+export function KanbanCard({ work, onClick, onDelete }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -36,6 +38,13 @@ export function KanbanCard({ work, onClick }: KanbanCardProps) {
   const isDueToday = work.due_date && isToday(parseISO(work.due_date));
   const isOverdue = work.due_date && isPast(parseISO(work.due_date)) && !isToday(parseISO(work.due_date));
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    if (onDelete) {
+      onDelete(work.id);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -43,12 +52,24 @@ export function KanbanCard({ work, onClick }: KanbanCardProps) {
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className={`kanban-card animate-fade-in ${
+      className={`kanban-card animate-fade-in relative group ${
         isDueToday ? 'border-warning/50 bg-warning/5' : ''
       } ${
         isOverdue ? 'border-destructive/50 bg-destructive/5' : ''
       }`}
     >
+      {/* Delete button - visible on hover */}
+      {onDelete && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleDelete}
+          className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-destructive/10 hover:bg-destructive/20 text-destructive"
+          title="Eliminar trabajo"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="font-medium text-foreground text-sm leading-tight">
           {work.title}
