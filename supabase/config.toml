@@ -1,1 +1,4 @@
 project_id = "ipzrthrpxvksoujavrem"
+
+[functions.generate-presupuesto-pdf]
+verify_jwt = false
