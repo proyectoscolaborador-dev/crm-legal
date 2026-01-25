@@ -126,6 +126,7 @@ export default function Index() {
       await createPresupuesto.mutateAsync({
         numero_presupuesto: getNextNumero(),
         cliente_nombre: workData.clientData.name || 'Sin nombre',
+        cliente_nif: workData.clientData.nif,
         cliente_email: workData.clientData.email,
         cliente_telefono: workData.clientData.phone,
         cliente_direccion: workData.clientData.address,
