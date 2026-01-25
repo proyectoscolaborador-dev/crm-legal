@@ -465,69 +465,81 @@ export default function PresupuestoEditor() {
             </CardContent>
           </Card>
 
-          {/* Partidas */}
+          {/* Partidas - Mobile Optimized */}
           <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base">Partidas</CardTitle>
-              <Button type="button" variant="outline" size="sm" onClick={addPartida}>
-                <Plus className="h-4 w-4 mr-1" />
-                Añadir
-              </Button>
             </CardHeader>
             <CardContent className="space-y-4">
               {formData.partidas.map((partida, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-12 sm:col-span-5 space-y-1">
-                    <Label className="text-xs">Concepto</Label>
+                <div key={index} className="p-4 rounded-lg bg-muted/30 border border-border space-y-3">
+                  {/* Mobile: Stack vertically, Desktop: Grid */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium">Concepto</Label>
                     <Input
                       value={partida.concepto}
                       onChange={(e) => updatePartida(index, 'concepto', e.target.value)}
-                      placeholder="Descripción..."
-                      className="bg-muted border-border text-sm"
+                      placeholder="Descripción del trabajo..."
+                      className="bg-muted border-border text-base h-12"
                     />
                   </div>
-                  <div className="col-span-3 sm:col-span-2 space-y-1">
-                    <Label className="text-xs">Cantidad</Label>
-                    <Input
-                      type="number"
-                      value={partida.cantidad}
-                      onChange={(e) => updatePartida(index, 'cantidad', e.target.value)}
-                      className="bg-muted border-border text-sm"
-                      min={1}
-                    />
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Cantidad</Label>
+                      <Input
+                        type="number"
+                        value={partida.cantidad}
+                        onChange={(e) => updatePartida(index, 'cantidad', e.target.value)}
+                        className="bg-muted border-border text-base h-12 text-center"
+                        min={1}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Precio/ud (€)</Label>
+                      <Input
+                        type="number"
+                        value={partida.precio_unidad}
+                        onChange={(e) => updatePartida(index, 'precio_unidad', e.target.value)}
+                        className="bg-muted border-border text-base h-12 text-center"
+                        step="0.01"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-medium">Importe</Label>
+                      <Input
+                        value={formatCurrency(partida.importe_linea)}
+                        className="bg-muted border-border text-base h-12 text-center font-semibold"
+                        readOnly
+                      />
+                    </div>
                   </div>
-                  <div className="col-span-4 sm:col-span-2 space-y-1">
-                    <Label className="text-xs">Precio/ud</Label>
-                    <Input
-                      type="number"
-                      value={partida.precio_unidad}
-                      onChange={(e) => updatePartida(index, 'precio_unidad', e.target.value)}
-                      className="bg-muted border-border text-sm"
-                      step="0.01"
-                    />
-                  </div>
-                  <div className="col-span-4 sm:col-span-2 space-y-1">
-                    <Label className="text-xs">Importe</Label>
-                    <Input
-                      value={formatCurrency(partida.importe_linea)}
-                      className="bg-muted border-border text-sm"
-                      readOnly
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => removePartida(index)}
-                      disabled={formData.partidas.length === 1}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  
+                  {/* Delete button - more visible on mobile */}
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removePartida(index)}
+                    disabled={formData.partidas.length === 1}
+                    className="w-full h-10 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Eliminar partida
+                  </Button>
                 </div>
               ))}
+
+              {/* Large Add Button - Mobile Optimized */}
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={addPartida}
+                className="w-full h-14 text-base gap-3 border-dashed border-2 border-primary/50 hover:border-primary hover:bg-primary/5"
+              >
+                <Plus className="h-5 w-5" />
+                Añadir Partida
+              </Button>
 
               {/* Totals */}
               <div className="border-t border-border pt-4 mt-4">
