@@ -7,7 +7,6 @@ import { useEmpresa } from '@/hooks/useEmpresa';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -15,13 +14,11 @@ import {
   Mail, 
   Building2, 
   MessageSquare, 
-  FileText, 
   Star,
   DollarSign,
   Calendar,
   CheckCircle,
   X,
-  ExternalLink,
   Edit,
   Send,
   Download,
@@ -29,11 +26,9 @@ import {
   Eye,
   AlertCircle
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { generatePresupuestoPdf, openPdfInNewTab, downloadPdf } from '@/lib/pdfGenerator';
 
 interface ClientPanelProps {
   work: WorkWithClient | null;
@@ -110,7 +105,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
   };
 
   const handlePreviewPdf = async () => {
-    if (!isEmpresaComplete) {
+    if (!isEmpresaComplete || !empresa) {
       toast.error('Debes completar los datos de tu empresa primero');
       navigate('/mis-datos-empresa', { state: { returnTo: '/' } });
       return;
@@ -124,24 +119,16 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
     setIsPreviewingPdf(true);
 
     try {
-      // Generate PDF preview (works even with 0€ amount)
-      const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-presupuesto-pdf', {
-        body: { presupuestoId: linkedPresupuesto.id }
+      const pdfBlob = await generatePresupuestoPdf({
+        presupuesto: linkedPresupuesto,
+        empresa,
+        subtotal: linkedPresupuesto.subtotal,
+        iva_importe: linkedPresupuesto.iva_importe,
+        total: linkedPresupuesto.total_presupuesto,
       });
-
-      if (pdfError) throw pdfError;
-
-      // Update PDF URL in presupuesto
-      if (pdfData?.pdfUrl) {
-        await updatePresupuesto.mutateAsync({
-          id: linkedPresupuesto.id,
-          pdf_url: pdfData.pdfUrl,
-        });
-        
-        // Open PDF in new tab
-        window.open(pdfData.pdfUrl, '_blank');
-        toast.success('Borrador PDF generado correctamente');
-      }
+      
+      openPdfInNewTab(pdfBlob);
+      toast.success('Borrador PDF generado correctamente');
     } catch (error: any) {
       console.error('Error generating preview PDF:', error);
       toast.error('Error al generar el borrador PDF: ' + (error.message || 'Error desconocido'));
@@ -151,7 +138,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
   };
 
   const handleSendPresupuesto = async () => {
-    if (!isEmpresaComplete) {
+    if (!isEmpresaComplete || !empresa) {
       toast.error('Debes completar los datos de tu empresa primero');
       navigate('/mis-datos-empresa', { state: { returnTo: '/' } });
       return;
@@ -170,18 +157,19 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
     setIsSendingPresupuesto(true);
 
     try {
-      // 1. Generate PDF via edge function
-      const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-presupuesto-pdf', {
-        body: { presupuestoId: linkedPresupuesto.id }
+      // 1. Generate PDF locally
+      const pdfBlob = await generatePresupuestoPdf({
+        presupuesto: linkedPresupuesto,
+        empresa,
+        subtotal: linkedPresupuesto.subtotal,
+        iva_importe: linkedPresupuesto.iva_importe,
+        total: linkedPresupuesto.total_presupuesto,
       });
 
-      if (pdfError) throw pdfError;
-
-      // 2. Update presupuesto status and PDF URL
+      // 2. Update presupuesto status
       await updatePresupuesto.mutateAsync({
         id: linkedPresupuesto.id,
         estado_presupuesto: 'enviado',
-        pdf_url: pdfData?.pdfUrl || null,
       });
 
       // 3. Update work status to "presupuesto_enviado"
@@ -192,10 +180,14 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
       });
 
       toast.success('Presupuesto enviado correctamente');
+      
+      // Download PDF for sharing
+      const filename = `Presupuesto-${linkedPresupuesto.numero_presupuesto.replace(/\//g, '-')}.pdf`;
+      downloadPdf(pdfBlob, filename);
 
-      // Optional: Open WhatsApp with PDF link
-      if (pdfData?.pdfUrl && client?.phone) {
-        const message = `Hola ${client.name}, te envío el presupuesto para "${work.title}". Puedes verlo aquí: ${pdfData.pdfUrl}`;
+      // Optional: Open WhatsApp
+      if (client?.phone) {
+        const message = `Hola ${client.name}, te envío el presupuesto para "${work.title}". Te acabo de enviar el archivo PDF.`;
         openWhatsApp(message);
       }
     } catch (error: any) {
@@ -206,11 +198,27 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
     }
   };
 
-  const handleDownloadPdf = () => {
-    if (linkedPresupuesto?.pdf_url) {
-      window.open(linkedPresupuesto.pdf_url, '_blank');
-    } else {
-      toast.error('No hay PDF disponible');
+  const handleDownloadPdf = async () => {
+    if (!linkedPresupuesto || !empresa) {
+      toast.error('No hay presupuesto disponible');
+      return;
+    }
+    
+    try {
+      const pdfBlob = await generatePresupuestoPdf({
+        presupuesto: linkedPresupuesto,
+        empresa,
+        subtotal: linkedPresupuesto.subtotal,
+        iva_importe: linkedPresupuesto.iva_importe,
+        total: linkedPresupuesto.total_presupuesto,
+      });
+      
+      const filename = `Presupuesto-${linkedPresupuesto.numero_presupuesto.replace(/\//g, '-')}.pdf`;
+      downloadPdf(pdfBlob, filename);
+      toast.success('PDF descargado correctamente');
+    } catch (error: any) {
+      console.error('Error downloading PDF:', error);
+      toast.error('Error al descargar el PDF');
     }
   };
 
@@ -500,7 +508,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                     </div>
                   </Button>
 
-                  {linkedPresupuesto?.pdf_url && (
+                  {linkedPresupuesto && (
                     <Button
                       variant="outline"
                       className="w-full justify-start gap-3 h-14"
@@ -509,7 +517,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                       <Download className="w-5 h-5 text-secondary" />
                       <div className="text-left">
                         <p className="font-medium">Descargar PDF</p>
-                        <p className="text-xs text-muted-foreground">Ver documento generado</p>
+                        <p className="text-xs text-muted-foreground">Generar y guardar documento</p>
                       </div>
                     </Button>
                   )}
