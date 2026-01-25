@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useEmpresa } from '@/hooks/useEmpresa';
@@ -28,7 +28,8 @@ import {
   Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { generatePresupuestoPdf, downloadPdf, openPdfInNewTab } from '@/lib/pdfGenerator';
+import { generatePresupuestoPdf, downloadPdf } from '@/lib/pdfGenerator';
+import { PdfPreviewModal } from '@/components/PdfPreviewModal';
 
 export default function PresupuestoEditor() {
   const navigate = useNavigate();
@@ -42,7 +43,10 @@ export default function PresupuestoEditor() {
 
   const [saving, setSaving] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   
+  // Initialize with empty object to prevent undefined errors
   const [formData, setFormData] = useState<PresupuestoFormData>({
     numero_presupuesto: '',
     cliente_nombre: '',
@@ -180,8 +184,8 @@ export default function PresupuestoEditor() {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(value);
   };
 
-  // Generate PDF locally with jsPDF
-  const handlePreviewPdf = async () => {
+  // Generate PDF and show in modal (no popup blocking)
+  const handlePreviewPdf = useCallback(async () => {
     if (!empresa) {
       toast.error('Falta configurar los datos de empresa');
       return;
@@ -189,7 +193,7 @@ export default function PresupuestoEditor() {
     
     setGeneratingPdf(true);
     try {
-      const pdfBlob = await generatePresupuestoPdf({
+      const blob = await generatePresupuestoPdf({
         presupuesto: {
           numero_presupuesto: formData.numero_presupuesto,
           fecha_presupuesto: formData.fecha_presupuesto,
@@ -214,17 +218,18 @@ export default function PresupuestoEditor() {
         total,
       });
       
-      openPdfInNewTab(pdfBlob);
-      toast.success('PDF generado correctamente');
+      // Show in modal instead of new tab (avoids popup blockers)
+      setPdfBlob(blob);
+      setPdfModalOpen(true);
     } catch (err) {
       console.error('Error generating PDF:', err);
-      toast.error('Error al generar el PDF');
+      toast.error('Error al generar el PDF: ' + (err instanceof Error ? err.message : 'Error desconocido'));
     } finally {
       setGeneratingPdf(false);
     }
-  };
+  }, [empresa, formData, subtotal, iva_importe, total]);
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = useCallback(async () => {
     if (!empresa) {
       toast.error('Falta configurar los datos de empresa');
       return;
@@ -232,7 +237,7 @@ export default function PresupuestoEditor() {
     
     setGeneratingPdf(true);
     try {
-      const pdfBlob = await generatePresupuestoPdf({
+      const blob = await generatePresupuestoPdf({
         presupuesto: {
           numero_presupuesto: formData.numero_presupuesto,
           fecha_presupuesto: formData.fecha_presupuesto,
@@ -258,15 +263,15 @@ export default function PresupuestoEditor() {
       });
       
       const filename = `Presupuesto-${formData.numero_presupuesto.replace(/\//g, '-')}.pdf`;
-      downloadPdf(pdfBlob, filename);
+      downloadPdf(blob, filename);
       toast.success('PDF descargado correctamente');
     } catch (err) {
       console.error('Error generating PDF:', err);
-      toast.error('Error al generar el PDF');
+      toast.error('Error al generar el PDF: ' + (err instanceof Error ? err.message : 'Error desconocido'));
     } finally {
       setGeneratingPdf(false);
     }
-  };
+  }, [empresa, formData, subtotal, iva_importe, total]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,14 +280,16 @@ export default function PresupuestoEditor() {
     try {
       if (isEditing) {
         await updatePresupuesto.mutateAsync({ id: id!, ...formData });
+        toast.success('Presupuesto actualizado');
       } else {
         await createPresupuesto.mutateAsync(formData);
+        toast.success('Presupuesto creado');
       }
-
-      toast.success(isEditing ? 'Presupuesto actualizado' : 'Presupuesto creado');
       navigate('/presupuestos');
-    } catch {
-      // Error handled by mutation
+    } catch (err) {
+      // Show specific error message from Supabase
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      toast.error(`Error al guardar: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -663,6 +670,17 @@ export default function PresupuestoEditor() {
           </Card>
         </form>
       </main>
+
+      {/* PDF Preview Modal - No popup blocking */}
+      <PdfPreviewModal
+        isOpen={pdfModalOpen}
+        onClose={() => setPdfModalOpen(false)}
+        pdfBlob={pdfBlob}
+        fileName={`Presupuesto-${formData.numero_presupuesto.replace(/\//g, '-')}.pdf`}
+        clientPhone={formData.cliente_telefono}
+        clientName={formData.cliente_nombre}
+        presupuestoTitle={formData.obra_titulo}
+      />
     </div>
   );
 }
