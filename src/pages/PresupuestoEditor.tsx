@@ -104,11 +104,11 @@ export default function PresupuestoEditor() {
   useEffect(() => {
     if (!empresaLoading && !isEmpresaComplete && user) {
       navigate('/mis-datos-empresa', { 
-        state: { returnTo: isEditing ? `/presupuestos/${id}` : '/presupuestos/nuevo' },
+        state: { returnTo: '/' },
         replace: true 
       });
     }
-  }, [empresaLoading, isEmpresaComplete, user, navigate, isEditing, id]);
+  }, [empresaLoading, isEmpresaComplete, user, navigate]);
 
   if (authLoading || empresaLoading) {
     return (
@@ -287,7 +287,8 @@ export default function PresupuestoEditor() {
         await createPresupuesto.mutateAsync(formData);
         toast.success('Presupuesto creado');
       }
-      navigate('/presupuestos');
+      // Navigate back to dashboard since /presupuestos is removed
+      navigate('/');
     } catch (err) {
       // Show specific error message from Supabase
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
@@ -304,7 +305,7 @@ export default function PresupuestoEditor() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/presupuestos')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-2">
@@ -474,6 +475,16 @@ export default function PresupuestoEditor() {
                     placeholder="Nombre completo"
                     className="bg-muted border-border h-12"
                     required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>NIF / CIF</Label>
+                  <Input
+                    name="cliente_nif"
+                    value={formData.cliente_nif || ''}
+                    onChange={handleChange}
+                    placeholder="12345678A"
+                    className="bg-muted border-border h-12"
                   />
                 </div>
                 <div className="space-y-2">

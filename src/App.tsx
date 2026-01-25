@@ -8,7 +8,6 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import MisDatosEmpresa from "./pages/MisDatosEmpresa";
-import Presupuestos from "./pages/Presupuestos";
 import PresupuestoEditor from "./pages/PresupuestoEditor";
 
 const queryClient = new QueryClient();
@@ -24,9 +23,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/mis-datos-empresa" element={<MisDatosEmpresa />} />
-            <Route path="/presupuestos" element={<Presupuestos />} />
-            <Route path="/presupuestos/nuevo" element={<PresupuestoEditor />} />
-            <Route path="/presupuestos/:id" element={<PresupuestoEditor />} />
+            <Route path="/presupuesto/:id" element={<PresupuestoEditor />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
