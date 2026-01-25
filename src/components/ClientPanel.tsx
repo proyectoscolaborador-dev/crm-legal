@@ -25,12 +25,15 @@ import {
   Edit,
   Send,
   Download,
-  Loader2
+  Loader2,
+  Eye,
+  AlertCircle
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ClientPanelProps {
   work: WorkWithClient | null;
@@ -43,12 +46,24 @@ interface ClientPanelProps {
 export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: ClientPanelProps) {
   const navigate = useNavigate();
   const { markAsPaid, updateWorkStatus } = useWorks();
-  const { presupuestos, updatePresupuesto } = usePresupuestos();
+  const { presupuestos, isLoading: presupuestosLoading, updatePresupuesto } = usePresupuestos();
   const { empresa, isEmpresaComplete } = useEmpresa();
   const [editedWork, setEditedWork] = useState<Partial<WorkWithClient>>({});
   const [isSendingPresupuesto, setIsSendingPresupuesto] = useState(false);
+  const [isPreviewingPdf, setIsPreviewingPdf] = useState(false);
 
-  if (!work) return null;
+  // Early return if no work - but still show sheet if open
+  if (!work) {
+    return (
+      <Sheet open={isOpen} onOpenChange={onClose}>
+        <SheetContent className="w-full sm:max-w-lg bg-card border-border">
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   const client = work.client;
 
@@ -92,6 +107,47 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
       navigate('/presupuestos/nuevo', { state: { workId: work.id, client } });
     }
     onClose();
+  };
+
+  const handlePreviewPdf = async () => {
+    if (!isEmpresaComplete) {
+      toast.error('Debes completar los datos de tu empresa primero');
+      navigate('/mis-datos-empresa', { state: { returnTo: '/' } });
+      return;
+    }
+
+    if (!linkedPresupuesto) {
+      toast.error('No hay presupuesto asociado a este trabajo');
+      return;
+    }
+
+    setIsPreviewingPdf(true);
+
+    try {
+      // Generate PDF preview (works even with 0€ amount)
+      const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-presupuesto-pdf', {
+        body: { presupuestoId: linkedPresupuesto.id }
+      });
+
+      if (pdfError) throw pdfError;
+
+      // Update PDF URL in presupuesto
+      if (pdfData?.pdfUrl) {
+        await updatePresupuesto.mutateAsync({
+          id: linkedPresupuesto.id,
+          pdf_url: pdfData.pdfUrl,
+        });
+        
+        // Open PDF in new tab
+        window.open(pdfData.pdfUrl, '_blank');
+        toast.success('Borrador PDF generado correctamente');
+      }
+    } catch (error: any) {
+      console.error('Error generating preview PDF:', error);
+      toast.error('Error al generar el borrador PDF: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setIsPreviewingPdf(false);
+    }
   };
 
   const handleSendPresupuesto = async () => {
@@ -334,95 +390,132 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
           </TabsContent>
 
           <TabsContent value="presupuesto" className="space-y-4 mt-4">
-            {/* Presupuesto Status */}
-            <div className="p-4 rounded-lg bg-muted/50 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Estado Presupuesto</p>
-                  <p className="text-xs text-muted-foreground">
-                    {linkedPresupuesto 
-                      ? `${linkedPresupuesto.estado_presupuesto.charAt(0).toUpperCase() + linkedPresupuesto.estado_presupuesto.slice(1)} - ${linkedPresupuesto.numero_presupuesto}`
-                      : 'Sin presupuesto asociado'
-                    }
-                  </p>
-                </div>
-                {linkedPresupuesto && (
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    linkedPresupuesto.estado_presupuesto === 'enviado' 
-                      ? 'bg-primary/20 text-primary' 
-                      : linkedPresupuesto.estado_presupuesto === 'aceptado'
-                      ? 'bg-secondary/20 text-secondary'
-                      : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {linkedPresupuesto.estado_presupuesto}
-                  </span>
-                )}
+            {/* Loading state for presupuestos */}
+            {presupuestosLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Cargando presupuesto...</span>
               </div>
+            ) : (
+              <>
+                {/* Presupuesto Status */}
+                <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Estado Presupuesto</p>
+                      <p className="text-xs text-muted-foreground">
+                        {linkedPresupuesto 
+                          ? `${linkedPresupuesto.estado_presupuesto.charAt(0).toUpperCase() + linkedPresupuesto.estado_presupuesto.slice(1)} - ${linkedPresupuesto.numero_presupuesto}`
+                          : 'Sin presupuesto asociado'
+                        }
+                      </p>
+                    </div>
+                    {linkedPresupuesto && (
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        linkedPresupuesto.estado_presupuesto === 'enviado' 
+                          ? 'bg-primary/20 text-primary' 
+                          : linkedPresupuesto.estado_presupuesto === 'aceptado'
+                          ? 'bg-secondary/20 text-secondary'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {linkedPresupuesto.estado_presupuesto}
+                      </span>
+                    )}
+                  </div>
 
-              {linkedPresupuesto && (
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Subtotal:</span>
-                    <span className="ml-2 font-medium">{formatCurrency(linkedPresupuesto.subtotal)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">IVA:</span>
-                    <span className="ml-2 font-medium">{formatCurrency(linkedPresupuesto.iva_importe)}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-muted-foreground">Total:</span>
-                    <span className="ml-2 font-bold text-lg">{formatCurrency(linkedPresupuesto.total_presupuesto)}</span>
-                  </div>
+                  {linkedPresupuesto && (
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Subtotal:</span>
+                        <span className="ml-2 font-medium">{formatCurrency(linkedPresupuesto.subtotal)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">IVA:</span>
+                        <span className="ml-2 font-medium">{formatCurrency(linkedPresupuesto.iva_importe)}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Total:</span>
+                        <span className="ml-2 font-bold text-lg">{formatCurrency(linkedPresupuesto.total_presupuesto)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {!linkedPresupuesto && (
+                    <Alert className="bg-warning/10 border-warning/30">
+                      <AlertCircle className="h-4 w-4 text-warning" />
+                      <AlertDescription className="text-warning text-sm">
+                        No hay presupuesto vinculado a este trabajo. Pulsa "Editar Presupuesto" para crear uno.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Presupuesto Actions */}
-            <div className="space-y-3">
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3 h-12"
-                onClick={handleEditPresupuesto}
-              >
-                <Edit className="w-5 h-5 text-primary" />
-                <div className="text-left">
-                  <p className="font-medium">Editar Presupuesto</p>
-                  <p className="text-xs text-muted-foreground">
-                    {linkedPresupuesto ? 'Modificar partidas y detalles' : 'Crear nuevo presupuesto'}
-                  </p>
+                {/* Presupuesto Actions */}
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-14"
+                    onClick={handleEditPresupuesto}
+                  >
+                    <Edit className="w-5 h-5 text-primary" />
+                    <div className="text-left">
+                      <p className="font-medium">Editar Presupuesto</p>
+                      <p className="text-xs text-muted-foreground">
+                        {linkedPresupuesto ? 'Modificar partidas y detalles' : 'Crear nuevo presupuesto'}
+                      </p>
+                    </div>
+                  </Button>
+
+                  {/* Preview PDF - works even with 0€ */}
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-14 border-secondary/50 hover:bg-secondary/10"
+                    onClick={handlePreviewPdf}
+                    disabled={!linkedPresupuesto || isPreviewingPdf}
+                  >
+                    {isPreviewingPdf ? (
+                      <Loader2 className="w-5 h-5 animate-spin text-secondary" />
+                    ) : (
+                      <Eye className="w-5 h-5 text-secondary" />
+                    )}
+                    <div className="text-left">
+                      <p className="font-medium">Ver Borrador PDF</p>
+                      <p className="text-xs text-muted-foreground">Previsualizar documento actual</p>
+                    </div>
+                  </Button>
+
+                  <Button
+                    className="w-full justify-start gap-3 h-14 bg-primary text-primary-foreground hover:bg-primary/90"
+                    onClick={handleSendPresupuesto}
+                    disabled={!linkedPresupuesto || linkedPresupuesto.subtotal === 0 || isSendingPresupuesto}
+                  >
+                    {isSendingPresupuesto ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
+                    <div className="text-left">
+                      <p className="font-medium">Enviar Presupuesto</p>
+                      <p className="text-xs opacity-80">Genera PDF y envía al cliente</p>
+                    </div>
+                  </Button>
+
+                  {linkedPresupuesto?.pdf_url && (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start gap-3 h-14"
+                      onClick={handleDownloadPdf}
+                    >
+                      <Download className="w-5 h-5 text-secondary" />
+                      <div className="text-left">
+                        <p className="font-medium">Descargar PDF</p>
+                        <p className="text-xs text-muted-foreground">Ver documento generado</p>
+                      </div>
+                    </Button>
+                  )}
                 </div>
-              </Button>
-
-              <Button
-                className="w-full justify-start gap-3 h-12 bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={handleSendPresupuesto}
-                disabled={!linkedPresupuesto || linkedPresupuesto.subtotal === 0 || isSendingPresupuesto}
-              >
-                {isSendingPresupuesto ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
-                <div className="text-left">
-                  <p className="font-medium">Enviar Presupuesto</p>
-                  <p className="text-xs opacity-80">Genera PDF y envía al cliente</p>
-                </div>
-              </Button>
-
-              {linkedPresupuesto?.pdf_url && (
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-12"
-                  onClick={handleDownloadPdf}
-                >
-                  <Download className="w-5 h-5 text-secondary" />
-                  <div className="text-left">
-                    <p className="font-medium">Descargar PDF</p>
-                    <p className="text-xs text-muted-foreground">Ver documento generado</p>
-                  </div>
-                </Button>
-              )}
-            </div>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="actions" className="space-y-3 mt-4">
