@@ -50,15 +50,12 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
   const [isSendingPresupuesto, setIsSendingPresupuesto] = useState(false);
   const [isPreviewingPdf, setIsPreviewingPdf] = useState(false);
   
-  // PDF Modal state
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   
-  // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Early return if no work - but still show sheet if open
   if (!work) {
     return (
       <Sheet open={isOpen} onOpenChange={onClose}>
@@ -72,11 +69,8 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
   }
 
   const client = work.client;
-
-  // Find presupuesto linked to this work
   const linkedPresupuesto = presupuestos.find(p => p.work_id === work.id);
 
-  // Calculate LTV
   const clientWorks = allWorks.filter(w => w.client_id === work.client_id);
   const ltv = clientWorks
     .filter(w => w.is_paid)
@@ -107,10 +101,8 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
     }
 
     if (linkedPresupuesto) {
-      // Navigate to existing budget - use correct route /presupuesto/:id
       navigate(`/presupuesto/${linkedPresupuesto.id}`);
     } else {
-      // No presupuesto linked - create one first and navigate
       navigate('/presupuesto/nuevo', { state: { workId: work.id, client } });
     }
     onClose();
@@ -119,11 +111,9 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
   const handleDeleteWork = async () => {
     setIsDeleting(true);
     try {
-      // First delete linked presupuesto if exists
       if (linkedPresupuesto && deletePresupuesto) {
         await deletePresupuesto.mutateAsync(linkedPresupuesto.id);
       }
-      // Then delete the work
       await deleteWork.mutateAsync(work.id);
       onClose();
     } catch (error) {
@@ -158,7 +148,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
         total: linkedPresupuesto.total_presupuesto,
       });
       
-      // Open in internal modal instead of new tab
       setPdfBlob(blob);
       setPdfModalOpen(true);
       toast.success('PDF generado correctamente');
@@ -190,7 +179,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
     setIsSendingPresupuesto(true);
 
     try {
-      // 1. Generate PDF locally
       const blob = await generatePresupuestoPdf({
         presupuesto: linkedPresupuesto,
         empresa,
@@ -199,13 +187,11 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
         total: linkedPresupuesto.total_presupuesto,
       });
 
-      // 2. Update presupuesto status
       await updatePresupuesto.mutateAsync({
         id: linkedPresupuesto.id,
         estado_presupuesto: 'enviado',
       });
 
-      // 3. Update work status to "presupuesto_enviado"
       updateWorkStatus.mutate({ 
         id: work.id, 
         status: 'presupuesto_enviado',
@@ -214,11 +200,9 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
 
       toast.success('Presupuesto enviado correctamente');
       
-      // Download PDF for sharing
       const filename = `Presupuesto-${linkedPresupuesto.numero_presupuesto.replace(/\//g, '-')}.pdf`;
       downloadPdf(blob, filename);
 
-      // Optional: Open WhatsApp
       if (client?.phone) {
         const message = `Hola ${client.name}, te envío el presupuesto para "${work.title}". Te acabo de enviar el archivo PDF.`;
         openWhatsApp(message);
@@ -302,7 +286,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
             </TabsList>
 
             <TabsContent value="contact" className="space-y-4 mt-4">
-              {/* Contact Info */}
               <div className="space-y-3">
                 {client?.email && (
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
@@ -317,12 +300,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                       <Phone className="w-4 h-4 text-primary" />
                       <span className="text-sm text-foreground">{client.phone}</span>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-2"
-                      onClick={() => openWhatsApp()}
-                    >
+                    <Button size="sm" variant="outline" className="gap-2" onClick={() => openWhatsApp()}>
                       <MessageSquare className="w-4 h-4" />
                       WhatsApp
                     </Button>
@@ -330,7 +308,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                 )}
               </div>
 
-              {/* LTV */}
               <div className="p-4 rounded-lg bg-secondary/10 border border-secondary/20">
                 <div className="flex items-center gap-2 mb-1">
                   <Star className="w-4 h-4 text-secondary" />
@@ -342,7 +319,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                 </p>
               </div>
 
-              {/* Notes */}
               {client?.notes && (
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground mb-1">Notas</p>
@@ -352,7 +328,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
             </TabsContent>
 
             <TabsContent value="finances" className="space-y-4 mt-4">
-              {/* Current Work Info */}
               <div className="p-4 rounded-lg bg-muted/50 space-y-4">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Trabajo Actual</p>
@@ -402,13 +377,10 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                 </div>
 
                 {Object.keys(editedWork).length > 0 && (
-                  <Button onClick={handleSave} className="w-full h-12">
-                    Guardar Cambios
-                  </Button>
+                  <Button onClick={handleSave} className="w-full h-12">Guardar Cambios</Button>
                 )}
               </div>
 
-              {/* Payment Status */}
               <div className="p-4 rounded-lg border border-border">
                 <div className="flex items-center justify-between">
                   <div>
@@ -433,7 +405,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
             </TabsContent>
 
             <TabsContent value="presupuesto" className="space-y-4 mt-4">
-              {/* Loading state for presupuestos */}
               {presupuestosLoading ? (
                 <div className="flex items-center justify-center p-8">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -441,7 +412,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                 </div>
               ) : (
                 <>
-                  {/* Presupuesto Status */}
                   <div className="p-4 rounded-lg bg-muted/50 space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
@@ -493,7 +463,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                     )}
                   </div>
 
-                  {/* Presupuesto Actions */}
                   <div className="space-y-3">
                     <Button
                       variant="outline"
@@ -509,7 +478,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                       </div>
                     </Button>
 
-                    {/* Preview PDF - opens in modal instead of new tab */}
                     <Button
                       variant="outline"
                       className="w-full justify-start gap-3 h-14 border-secondary/50 hover:bg-secondary/10"
@@ -530,7 +498,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                     <Button
                       className="w-full justify-start gap-3 h-14 bg-primary text-primary-foreground hover:bg-primary/90"
                       onClick={handleSendPresupuesto}
-                      disabled={!linkedPresupuesto || linkedPresupuesto.subtotal === 0 || isSendingPresupuesto}
+                      disabled={!linkedPresupuesto || isSendingPresupuesto}
                     >
                       {isSendingPresupuesto ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -586,7 +554,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                 </div>
               </Button>
 
-              {/* Delete Work Button */}
               <div className="pt-4 border-t border-border">
                 <Button
                   variant="outline"
@@ -605,7 +572,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
         </SheetContent>
       </Sheet>
 
-      {/* PDF Preview Modal */}
       <PdfPreviewModal
         isOpen={pdfModalOpen}
         onClose={() => {
@@ -619,7 +585,6 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
         presupuestoTitle={work.title}
       />
 
-      {/* Delete Confirmation Dialog */}
       <DeleteWorkDialog
         isOpen={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
