@@ -1,5 +1,4 @@
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LayoutGrid, Calendar, Users, Upload } from 'lucide-react';
+import { LayoutGrid, Calendar, Users, Upload, History } from 'lucide-react';
 
 interface MobileNavProps {
   activeTab: string;
@@ -19,6 +18,16 @@ export function MobileNav({ activeTab, onTabChange, onImportCSV }: MobileNavProp
         >
           <LayoutGrid className="w-5 h-5" />
           <span className="text-xs">Pipeline</span>
+        </button>
+
+        <button
+          onClick={() => onTabChange('history')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+            activeTab === 'history' ? 'text-primary' : 'text-muted-foreground'
+          }`}
+        >
+          <History className="w-5 h-5" />
+          <span className="text-xs">Historial</span>
         </button>
 
         <button
