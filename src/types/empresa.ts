@@ -44,7 +44,7 @@ export interface Presupuesto {
   iva_porcentaje: number;
   iva_importe: number;
   total_presupuesto: number;
-  estado_presupuesto: 'borrador' | 'enviado' | 'aceptado' | 'rechazado';
+  estado_presupuesto: 'borrador' | 'enviado' | 'aceptado' | 'rechazado' | 'en_proceso' | 'terminado' | 'facturado';
   fecha_presupuesto: string;
   validez_dias: number;
   comercial_nombre: string | null;
