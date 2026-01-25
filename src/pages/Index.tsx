@@ -69,13 +69,37 @@ export default function Index() {
     updateWorkStatus.mutate({ id: workId, status, position });
   };
 
-  const handleImportClients = async (importedClients: Array<{ name: string; email: string | null; phone: string | null; company: string | null; notes: string | null }>) => {
+  const handleImportClients = async (importedClients: Array<{ 
+    name: string; 
+    email: string | null; 
+    phone: string | null; 
+    company: string | null; 
+    notes: string | null;
+    nif?: string | null;
+    address?: string | null;
+    postal_code?: string | null;
+    city?: string | null;
+    province?: string | null;
+    country?: string | null;
+  }>) => {
     for (const client of importedClients) {
-      await createClient.mutateAsync(client);
+      await createClient.mutateAsync({
+        name: client.name,
+        email: client.email,
+        phone: client.phone,
+        company: client.company,
+        notes: client.notes,
+        nif: client.nif || null,
+        address: client.address || null,
+        postal_code: client.postal_code || null,
+        city: client.city || null,
+        province: client.province || null,
+        country: client.country || null,
+      });
     }
   };
 
-  const handleCreateClient = async (clientData: { name: string; email: string | null; phone: string | null; company: string | null; notes: string | null }): Promise<Client> => {
+  const handleCreateClient = async (clientData: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<Client> => {
     const result = await createClient.mutateAsync(clientData);
     return result as Client;
   };
@@ -210,7 +234,19 @@ export default function Index() {
       <NewClientModal
         isOpen={isNewClientOpen}
         onClose={() => setIsNewClientOpen(false)}
-        onCreateClient={(client) => createClient.mutate(client)}
+        onCreateClient={(client) => createClient.mutate({
+          name: client.name,
+          email: client.email,
+          phone: client.phone,
+          company: client.company,
+          notes: client.notes,
+          nif: client.nif || null,
+          address: client.address || null,
+          postal_code: client.postal_code || null,
+          city: client.city || null,
+          province: client.province || null,
+          country: client.country || null,
+        })}
       />
 
       <ImportCSV isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleImportClients} />

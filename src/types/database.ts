@@ -13,6 +13,12 @@ export interface Client {
   phone: string | null;
   company: string | null;
   notes: string | null;
+  nif: string | null;
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
+  province: string | null;
+  country: string | null;
   created_at: string;
   updated_at: string;
 }
