@@ -89,7 +89,7 @@ export function WorkflowActionBar({
           <Button
             type="button"
             onClick={onAccept}
-            disabled={isReadOnly}
+            disabled={false}
             className="flex-1 h-12 gap-2 bg-success hover:bg-success/90 text-success-foreground font-semibold text-base"
           >
             <Check className="h-5 w-5" />
@@ -99,7 +99,7 @@ export function WorkflowActionBar({
             type="button"
             variant="outline"
             onClick={onReject}
-            disabled={isReadOnly}
+            disabled={false}
             className="flex-1 h-12 gap-2 border-destructive text-destructive hover:bg-destructive/10 font-semibold text-base"
           >
             <X className="h-5 w-5" />
@@ -118,7 +118,7 @@ export function WorkflowActionBar({
           <Button
             type="button"
             onClick={onWorkCompleted}
-            disabled={isReadOnly}
+            disabled={false}
             className="w-full h-14 gap-3 bg-warning hover:bg-warning/90 text-warning-foreground font-bold text-lg"
           >
             <Flag className="h-6 w-6" />
@@ -137,7 +137,7 @@ export function WorkflowActionBar({
           <Button
             type="button"
             onClick={onIssueInvoice}
-            disabled={isReadOnly}
+            disabled={false}
             className="w-full h-14 gap-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-lg shadow-lg"
           >
             <FileText className="h-6 w-6" />
