@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { HistoryList } from '@/components/HistoryList';
 
 export default function Index() {
   const navigate = useNavigate();
@@ -168,12 +169,17 @@ export default function Index() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="hidden md:block">
           <TabsList className="bg-muted">
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+            <TabsTrigger value="history">Historial</TabsTrigger>
             <TabsTrigger value="calendar">Agenda</TabsTrigger>
             <TabsTrigger value="clients">Clientes</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pipeline" className="mt-4">
             <KanbanBoard works={works} onStatusChange={handleStatusChange} onWorkClick={handleWorkClick} />
+          </TabsContent>
+
+          <TabsContent value="history" className="mt-4">
+            <HistoryList works={works} onWorkClick={handleWorkClick} />
           </TabsContent>
 
           <TabsContent value="calendar" className="mt-4">
@@ -194,6 +200,9 @@ export default function Index() {
         <div className="md:hidden">
           {activeTab === 'pipeline' && (
             <KanbanBoard works={works} onStatusChange={handleStatusChange} onWorkClick={handleWorkClick} />
+          )}
+          {activeTab === 'history' && (
+            <HistoryList works={works} onWorkClick={handleWorkClick} />
           )}
           {activeTab === 'calendar' && (
             <CalendarView works={works} onWorkClick={handleWorkClick} />

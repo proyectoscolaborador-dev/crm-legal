@@ -47,15 +47,7 @@ export function Header({ onNewWork, onImportCSV, onNewClient, onToggleMobileMenu
             <span className="hidden md:inline">Mi Empresa</span>
           </Button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/presupuestos')}
-            className="gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <FileText className="w-4 h-4" />
-            <span className="hidden sm:inline">Presupuestos</span>
-          </Button>
+          {/* Removed standalone Presupuestos button - budgets are only created from within Works */}
 
           {onNewClient && (
             <Button
