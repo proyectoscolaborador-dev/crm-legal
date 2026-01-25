@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useEmpresa } from '@/hooks/useEmpresa';
@@ -24,10 +24,11 @@ import {
   Loader2, 
   Save,
   FileText,
-  Download
+  Download,
+  Eye
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { generatePresupuestoPdf, downloadPdf, openPdfInNewTab } from '@/lib/pdfGenerator';
 
 export default function PresupuestoEditor() {
   const navigate = useNavigate();
@@ -164,32 +165,100 @@ export default function PresupuestoEditor() {
     }
   };
 
-  const calculateTotals = () => {
-    const subtotal = formData.partidas.reduce((sum, p) => sum + (p.importe_linea || 0), 0);
-    const iva_importe = subtotal * (formData.iva_porcentaje / 100);
-    const total = subtotal + iva_importe;
-    return { subtotal, iva_importe, total };
-  };
+  // Real-time calculated totals with useMemo for performance
+  const { subtotal, iva_importe, total } = useMemo(() => {
+    const sub = formData.partidas.reduce((sum, p) => sum + (p.importe_linea || 0), 0);
+    const iva = sub * (formData.iva_porcentaje / 100);
+    return { subtotal: sub, iva_importe: iva, total: sub + iva };
+  }, [formData.partidas, formData.iva_porcentaje]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(value);
   };
 
-  const generatePdf = async (presupuestoId: string) => {
-    if (!empresa) return null;
+  // Generate PDF locally with jsPDF
+  const handlePreviewPdf = async () => {
+    if (!empresa) {
+      toast.error('Falta configurar los datos de empresa');
+      return;
+    }
     
     setGeneratingPdf(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-presupuesto-pdf', {
-        body: { presupuestoId },
+      const pdfBlob = await generatePresupuestoPdf({
+        presupuesto: {
+          numero_presupuesto: formData.numero_presupuesto,
+          fecha_presupuesto: formData.fecha_presupuesto,
+          validez_dias: formData.validez_dias,
+          cliente_nombre: formData.cliente_nombre,
+          cliente_direccion: formData.cliente_direccion,
+          cliente_cp: formData.cliente_cp,
+          cliente_ciudad: formData.cliente_ciudad,
+          cliente_provincia: formData.cliente_provincia,
+          cliente_telefono: formData.cliente_telefono,
+          cliente_email: formData.cliente_email,
+          obra_titulo: formData.obra_titulo,
+          descripcion_trabajo_larga: formData.descripcion_trabajo_larga,
+          comercial_nombre: formData.comercial_nombre,
+          estado_presupuesto: formData.estado_presupuesto,
+          partidas: formData.partidas,
+          iva_porcentaje: formData.iva_porcentaje,
+        },
+        empresa,
+        subtotal,
+        iva_importe,
+        total,
       });
       
-      if (error) throw error;
-      return data.pdfUrl;
+      openPdfInNewTab(pdfBlob);
+      toast.success('PDF generado correctamente');
     } catch (err) {
       console.error('Error generating PDF:', err);
       toast.error('Error al generar el PDF');
-      return null;
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!empresa) {
+      toast.error('Falta configurar los datos de empresa');
+      return;
+    }
+    
+    setGeneratingPdf(true);
+    try {
+      const pdfBlob = await generatePresupuestoPdf({
+        presupuesto: {
+          numero_presupuesto: formData.numero_presupuesto,
+          fecha_presupuesto: formData.fecha_presupuesto,
+          validez_dias: formData.validez_dias,
+          cliente_nombre: formData.cliente_nombre,
+          cliente_direccion: formData.cliente_direccion,
+          cliente_cp: formData.cliente_cp,
+          cliente_ciudad: formData.cliente_ciudad,
+          cliente_provincia: formData.cliente_provincia,
+          cliente_telefono: formData.cliente_telefono,
+          cliente_email: formData.cliente_email,
+          obra_titulo: formData.obra_titulo,
+          descripcion_trabajo_larga: formData.descripcion_trabajo_larga,
+          comercial_nombre: formData.comercial_nombre,
+          estado_presupuesto: formData.estado_presupuesto,
+          partidas: formData.partidas,
+          iva_porcentaje: formData.iva_porcentaje,
+        },
+        empresa,
+        subtotal,
+        iva_importe,
+        total,
+      });
+      
+      const filename = `Presupuesto-${formData.numero_presupuesto.replace(/\//g, '-')}.pdf`;
+      downloadPdf(pdfBlob, filename);
+      toast.success('PDF descargado correctamente');
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      toast.error('Error al generar el PDF');
     } finally {
       setGeneratingPdf(false);
     }
@@ -200,23 +269,13 @@ export default function PresupuestoEditor() {
     setSaving(true);
 
     try {
-      let presupuestoId: string;
-      
       if (isEditing) {
         await updatePresupuesto.mutateAsync({ id: id!, ...formData });
-        presupuestoId = id!;
       } else {
-        const result = await createPresupuesto.mutateAsync(formData);
-        presupuestoId = result.id;
+        await createPresupuesto.mutateAsync(formData);
       }
 
-      // Generate PDF
-      const pdfUrl = await generatePdf(presupuestoId);
-      if (pdfUrl) {
-        await updatePresupuesto.mutateAsync({ id: presupuestoId, pdf_url: pdfUrl } as any);
-        toast.success('PDF generado correctamente');
-      }
-
+      toast.success(isEditing ? 'Presupuesto actualizado' : 'Presupuesto creado');
       navigate('/presupuestos');
     } catch {
       // Error handled by mutation
@@ -225,7 +284,6 @@ export default function PresupuestoEditor() {
     }
   };
 
-  const { subtotal, iva_importe, total } = calculateTotals();
   const isFormValid = formData.cliente_nombre && formData.obra_titulo && formData.partidas.length > 0;
 
   return (
@@ -245,19 +303,41 @@ export default function PresupuestoEditor() {
           </div>
           <div className="flex gap-2">
             <Button 
+              type="button"
+              variant="outline"
+              onClick={handlePreviewPdf}
+              disabled={!formData.cliente_nombre || !formData.obra_titulo || generatingPdf}
+              className="gap-2"
+            >
+              {generatingPdf ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">Ver PDF</span>
+            </Button>
+            <Button 
+              type="button"
+              variant="outline"
+              onClick={handleDownloadPdf}
+              disabled={!formData.cliente_nombre || !formData.obra_titulo || generatingPdf}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Descargar</span>
+            </Button>
+            <Button 
               type="submit" 
               form="presupuesto-form"
               disabled={!isFormValid || saving || generatingPdf}
               className="gap-2"
             >
-              {saving || generatingPdf ? (
+              {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              <span className="hidden sm:inline">
-                {generatingPdf ? 'Generando PDF...' : 'Guardar'}
-              </span>
+              <span className="hidden sm:inline">Guardar</span>
             </Button>
           </div>
         </div>
@@ -489,6 +569,7 @@ export default function PresupuestoEditor() {
                       <Label className="text-xs font-medium">Cantidad</Label>
                       <Input
                         type="number"
+                        inputMode="decimal"
                         value={partida.cantidad}
                         onChange={(e) => updatePartida(index, 'cantidad', e.target.value)}
                         className="bg-muted border-border text-base h-12 text-center"
@@ -499,6 +580,7 @@ export default function PresupuestoEditor() {
                       <Label className="text-xs font-medium">Precio/ud (€)</Label>
                       <Input
                         type="number"
+                        inputMode="decimal"
                         value={partida.precio_unidad}
                         onChange={(e) => updatePartida(index, 'precio_unidad', e.target.value)}
                         className="bg-muted border-border text-base h-12 text-center"
@@ -509,7 +591,7 @@ export default function PresupuestoEditor() {
                       <Label className="text-xs font-medium">Importe</Label>
                       <Input
                         value={formatCurrency(partida.importe_linea)}
-                        className="bg-muted border-border text-base h-12 text-center font-semibold"
+                        className="bg-muted border-border text-base h-12 text-center font-semibold text-primary"
                         readOnly
                       />
                     </div>
