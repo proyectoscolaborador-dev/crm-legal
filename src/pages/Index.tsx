@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
@@ -16,6 +16,7 @@ import { ImportCSV } from '@/components/ImportCSV';
 import { CalendarView } from '@/components/CalendarView';
 import { ClientsList } from '@/components/ClientsList';
 import { MobileNav } from '@/components/MobileNav';
+import { NewClientModal } from '@/components/NewClientModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
@@ -24,8 +25,8 @@ import { toast } from 'sonner';
 export default function Index() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { clients, createClient, deleteClient } = useClients();
-  const { works, createWork, updateWork, updateWorkStatus } = useWorks();
+  const { clients, createClient, updateClient, deleteClient } = useClients();
+  const { works, createWork, updateWork, updateWorkStatus, isLoading: worksLoading } = useWorks();
   const { empresa, isLoading: empresaLoading, isEmpresaComplete } = useEmpresa();
   const { createPresupuesto, getNextNumero } = usePresupuestos();
 
@@ -33,7 +34,9 @@ export default function Index() {
   const [isClientPanelOpen, setIsClientPanelOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isNewClientOpen, setIsNewClientOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('pipeline');
+  const [isCreatingWork, setIsCreatingWork] = useState(false);
 
   if (authLoading || empresaLoading) {
     return (
@@ -72,6 +75,11 @@ export default function Index() {
     }
   };
 
+  const handleCreateClient = async (clientData: { name: string; email: string | null; phone: string | null; company: string | null; notes: string | null }): Promise<Client> => {
+    const result = await createClient.mutateAsync(clientData);
+    return result as Client;
+  };
+
   const handleCreateWorkWithPresupuesto = async (workData: {
     client_id: string;
     title: string;
@@ -86,6 +94,8 @@ export default function Index() {
       toast.error('Cliente no encontrado');
       return;
     }
+
+    setIsCreatingWork(true);
 
     try {
       // Create work first
@@ -116,6 +126,9 @@ export default function Index() {
       toast.success('Trabajo y presupuesto borrador creados');
     } catch (error) {
       console.error('Error creating work with presupuesto:', error);
+      toast.error('Error al crear el trabajo');
+    } finally {
+      setIsCreatingWork(false);
     }
   };
 
@@ -124,6 +137,7 @@ export default function Index() {
       <Header
         onNewWork={handleNewWorkClick}
         onImportCSV={() => setIsImportOpen(true)}
+        onNewClient={() => setIsNewClientOpen(true)}
       />
 
       <main className="container px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
@@ -146,7 +160,12 @@ export default function Index() {
           </TabsContent>
 
           <TabsContent value="clients" className="mt-4">
-            <ClientsList clients={clients} works={works} onDeleteClient={(id) => deleteClient.mutate(id)} />
+            <ClientsList 
+              clients={clients} 
+              works={works} 
+              onDeleteClient={(id) => deleteClient.mutate(id)}
+              onUpdateClient={(updates) => updateClient.mutate(updates)}
+            />
           </TabsContent>
         </Tabs>
 
@@ -159,7 +178,12 @@ export default function Index() {
             <CalendarView works={works} onWorkClick={handleWorkClick} />
           )}
           {activeTab === 'clients' && (
-            <ClientsList clients={clients} works={works} onDeleteClient={(id) => deleteClient.mutate(id)} />
+            <ClientsList 
+              clients={clients} 
+              works={works} 
+              onDeleteClient={(id) => deleteClient.mutate(id)}
+              onUpdateClient={(updates) => updateClient.mutate(updates)}
+            />
           )}
         </div>
       </main>
@@ -179,6 +203,13 @@ export default function Index() {
         onClose={() => setIsCreateModalOpen(false)}
         clients={clients}
         onCreateWork={handleCreateWorkWithPresupuesto}
+        onCreateClient={handleCreateClient}
+        isLoading={isCreatingWork}
+      />
+
+      <NewClientModal
+        isOpen={isNewClientOpen}
+        onClose={() => setIsNewClientOpen(false)}
         onCreateClient={(client) => createClient.mutate(client)}
       />
 

@@ -1,15 +1,16 @@
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Plus, Upload, LogOut, Menu, FileText, Building2 } from 'lucide-react';
+import { Plus, Upload, LogOut, Menu, FileText, Building2, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   onNewWork: () => void;
   onImportCSV: () => void;
+  onNewClient?: () => void;
   onToggleMobileMenu?: () => void;
 }
 
-export function Header({ onNewWork, onImportCSV, onToggleMobileMenu }: HeaderProps) {
+export function Header({ onNewWork, onImportCSV, onNewClient, onToggleMobileMenu }: HeaderProps) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -55,6 +56,18 @@ export function Header({ onNewWork, onImportCSV, onToggleMobileMenu }: HeaderPro
             <FileText className="w-4 h-4" />
             <span className="hidden sm:inline">Presupuestos</span>
           </Button>
+
+          {onNewClient && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onNewClient}
+              className="gap-2 border-secondary/50 text-secondary hover:bg-secondary/10"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span className="hidden sm:inline">Cliente</span>
+            </Button>
+          )}
 
           <Button
             variant="outline"
