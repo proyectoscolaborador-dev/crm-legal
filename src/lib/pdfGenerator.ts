@@ -69,13 +69,13 @@ export async function generatePresupuestoPdf(options: PdfGeneratorOptions): Prom
   const lightGray: [number, number, number] = [150, 150, 150];
 
   // --- HEADER ---
-  // Company logo (if exists) - try to load it
+  // Company logo (if exists) - try to load it - BIGGER SIZE
   if (empresa.empresa_logo_url) {
     try {
       const img = await loadImage(empresa.empresa_logo_url);
-      const logoHeight = 20;
+      const logoHeight = 30; // Increased from 20 to 30
       const logoWidth = (img.width / img.height) * logoHeight;
-      doc.addImage(img.src, 'PNG', margin, yPos, Math.min(logoWidth, 50), logoHeight);
+      doc.addImage(img.src, 'PNG', margin, yPos, Math.min(logoWidth, 70), logoHeight); // Increased max width from 50 to 70
     } catch (e) {
       console.log('Could not load logo:', e);
     }
