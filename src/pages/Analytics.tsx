@@ -1,17 +1,33 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useWorks } from '@/hooks/useWorks';
+import { useClients } from '@/hooks/useClients';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, TrendingUp, Clock, CheckCircle, AlertTriangle, BarChart3, PieChart, Wallet } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Clock, CheckCircle, AlertTriangle, BarChart3, PieChart, Wallet, RotateCcw, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { STAGE_CONFIG, WorkStatus } from '@/types/database';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Analytics() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { works, isLoading: worksLoading } = useWorks();
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const stats = useMemo(() => {
     const presupuestosEnviados = works
@@ -72,6 +88,30 @@ export default function Analytics() {
     }).format(value);
   };
 
+  const handleResetData = async () => {
+    if (!user) return;
+    setIsResetting(true);
+    try {
+      // Delete all presupuestos first (due to foreign key)
+      await supabase.from('presupuestos').delete().eq('user_id', user.id);
+      // Delete all works
+      await supabase.from('works').delete().eq('user_id', user.id);
+      // Delete all clients
+      await supabase.from('clients').delete().eq('user_id', user.id);
+      // Delete all reminders
+      await supabase.from('reminders').delete().eq('user_id', user.id);
+      
+      toast.success('Todos los datos han sido eliminados');
+      setResetDialogOpen(false);
+      navigate('/');
+    } catch (error) {
+      console.error('Error resetting data:', error);
+      toast.error('Error al resetear los datos');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   if (authLoading || worksLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -88,14 +128,27 @@ export default function Analytics() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur">
-        <div className="container flex h-14 items-center gap-4 px-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
-            <h1 className="text-lg font-bold">Analíticas</h1>
+        <div className="container flex h-14 items-center justify-between gap-4 px-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="transition-transform active:scale-90">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              <h1 className="text-lg font-bold">Analíticas</h1>
+            </div>
           </div>
+          
+          {/* Reset Button */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 transition-transform active:scale-95"
+            onClick={() => setResetDialogOpen(true)}
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset datos
+          </Button>
         </div>
       </header>
 
@@ -203,6 +256,38 @@ export default function Analytics() {
           </div>
         </div>
       </main>
+
+      {/* Reset Confirmation Dialog */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              ¿Eliminar todos los datos?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente todos tus clientes, trabajos, presupuestos y recordatorios. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isResetting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleResetData}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isResetting}
+            >
+              {isResetting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                'Eliminar todo'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

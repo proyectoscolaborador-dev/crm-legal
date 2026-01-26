@@ -30,6 +30,7 @@ import { PdfPreviewModal } from '@/components/PdfPreviewModal';
 import { ImageGallery } from '@/components/ImageGallery';
 import { SendConfirmDialog } from '@/components/SendConfirmDialog';
 import { InvoiceConfetti } from '@/components/InvoiceConfetti';
+import { RejectConfirmDialog } from '@/components/RejectConfirmDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,6 +65,8 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
   const [confirmDialog, setConfirmDialog] = useState<'finish' | 'paid' | 'invoice' | null>(null);
   const [sendConfirmDialog, setSendConfirmDialog] = useState<'whatsapp' | 'email' | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Local images state for editing
   const [localImages, setLocalImages] = useState<string[]>(work.images || []);
@@ -271,8 +274,30 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
   };
 
   const handleRejectBudget = () => {
+    setRejectDialogOpen(true);
+  };
+
+  const handleArchiveRejected = () => {
     onStatusChange(work.id, 'presupuesto_solicitado');
-    toast.info('Presupuesto rechazado');
+    toast.info('Presupuesto marcado como rechazado');
+    setRejectDialogOpen(false);
+    onClose();
+  };
+
+  const handleDeleteRejected = async () => {
+    setIsDeleting(true);
+    try {
+      if (onDeleteWork) {
+        onDeleteWork(work.id);
+      }
+      toast.success('Trabajo eliminado');
+      setRejectDialogOpen(false);
+      onClose();
+    } catch (error) {
+      toast.error('Error al eliminar');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleAddAdvance = () => {
@@ -308,10 +333,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
   };
 
   const confirmIssueInvoice = async () => {
-    // Fire confetti
-    setShowConfetti(true);
-    
-    // Update status
+    // Update status first
     onStatusChange(work.id, 'factura_enviada');
     
     // Generate invoice number if not exists
@@ -320,11 +342,8 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
       updateWork.mutate({ id: work.id, invoice_number: invoiceNumber });
     }
     
-    toast.success('🎉 ¡Factura emitida correctamente!', { duration: 5000 });
+    toast.success('📄 Factura emitida correctamente');
     setConfirmDialog(null);
-    
-    // Reset confetti after animation
-    setTimeout(() => setShowConfetti(false), 4000);
   };
 
   const handleRegisterPayment = () => {
@@ -351,10 +370,14 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
   };
 
   const confirmMarkFullyPaid = () => {
+    // Fire confetti on full payment
+    setShowConfetti(true);
     updateAdvancePayment.mutate({ id: work.id, advance_payments: total });
     onMarkAsPaid(work.id);
-    toast.success('¡Factura cobrada completamente! Pasando a Histórico...');
+    toast.success('🎉 ¡Factura cobrada completamente! Pasando a Histórico...');
     setConfirmDialog(null);
+    // Reset confetti after animation
+    setTimeout(() => setShowConfetti(false), 4000);
   };
 
   return (
@@ -457,7 +480,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
                   placeholder="Importe"
                   className="bg-background border-border"
                 />
-                <Button size="sm" onClick={handleAddAdvance} className="gap-1 whitespace-nowrap">
+                <Button size="sm" onClick={handleAddAdvance} className="gap-1 whitespace-nowrap transition-transform active:scale-95">
                   <Plus className="w-4 h-4" />
                   Anticipo
                 </Button>
@@ -498,7 +521,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
                     placeholder="Importe cobro"
                     className="bg-background border-border"
                   />
-                  <Button size="sm" onClick={handleRegisterPayment} className="gap-1 whitespace-nowrap bg-success hover:bg-success/90">
+                  <Button size="sm" onClick={handleRegisterPayment} className="gap-1 whitespace-nowrap bg-success hover:bg-success/90 transition-transform active:scale-95">
                     <Plus className="w-4 h-4" />
                     Cobro
                   </Button>
@@ -510,7 +533,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
           {/* 3. Main Action Button - Based on phase */}
           {phase === 'draft' && (
             <Button 
-              className="w-full h-14 text-lg gap-2 bg-primary hover:bg-primary/90"
+              className="w-full h-14 text-lg gap-2 bg-primary hover:bg-primary/90 transition-transform active:scale-95"
               onClick={handleEditPresupuesto}
             >
               <Edit className="w-5 h-5" />
@@ -521,7 +544,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
           {phase === 'sent' && (
             <div className="space-y-3">
               <Button 
-                className="w-full h-14 text-lg gap-2 bg-success hover:bg-success/90"
+                className="w-full h-14 text-lg gap-2 bg-success hover:bg-success/90 transition-transform active:scale-95"
                 onClick={handleAcceptBudget}
               >
                 <CheckCircle className="w-5 h-5" />
@@ -529,7 +552,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
               </Button>
               <Button 
                 variant="destructive"
-                className="w-full h-12 gap-2"
+                className="w-full h-12 gap-2 transition-transform active:scale-95"
                 onClick={handleRejectBudget}
               >
                 ❌ PRESUPUESTO RECHAZADO
@@ -539,7 +562,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
 
           {phase === 'inProgress' && (
             <Button 
-              className="w-full h-14 text-lg gap-2 bg-warning hover:bg-warning/90 text-warning-foreground"
+              className="w-full h-14 text-lg gap-2 bg-warning hover:bg-warning/90 text-warning-foreground transition-transform active:scale-95"
               onClick={handleWorkFinished}
             >
               <Flag className="w-5 h-5" />
@@ -549,7 +572,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
 
           {phase === 'pendingInvoice' && (
             <Button 
-              className="w-full h-14 text-lg gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg"
+              className="w-full h-14 text-lg gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg transition-transform active:scale-95"
               onClick={handleIssueInvoice}
             >
               <Receipt className="w-5 h-5" />
@@ -559,7 +582,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
 
           {phase === 'invoiced' && pendingAmount > 0 && (
             <Button 
-              className="w-full h-14 text-lg gap-2 bg-success hover:bg-success/90"
+              className="w-full h-14 text-lg gap-2 bg-success hover:bg-success/90 transition-transform active:scale-95"
               onClick={handleMarkFullyPaid}
             >
               <Wallet className="w-5 h-5" />
@@ -583,17 +606,17 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
             <div className="grid grid-cols-2 gap-2">
               <Button 
                 variant="outline" 
-                className="gap-2"
+                className="gap-2 transition-transform active:scale-95"
                 onClick={handlePreviewPdf}
                 disabled={isGeneratingPdf || !linkedPresupuesto}
               >
                 {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                Ver PDF
+                {(phase === 'invoiced' || phase === 'paid') ? 'Ver Factura' : 'Ver PDF'}
               </Button>
               
               <Button 
                 variant="outline" 
-                className="gap-2"
+                className="gap-2 transition-transform active:scale-95"
                 onClick={handleDownloadPdf}
                 disabled={isGeneratingPdf || !linkedPresupuesto}
               >
@@ -640,19 +663,36 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
             )}
           </div>
 
-          {/* 5. Contact Section */}
+          {/* 5. Contact Section - Always visible with phone and email */}
           <div className="space-y-3 pt-4 border-t border-border">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Contacto
             </h3>
             
+            {/* Contact info display */}
+            <div className="space-y-2 text-sm">
+              {client?.phone && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Phone className="w-4 h-4" />
+                  <span>{client.phone}</span>
+                </div>
+              )}
+              {client?.email && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Mail className="w-4 h-4" />
+                  <span>{client.email}</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Contact action buttons */}
             <div className="flex flex-wrap gap-2">
               {client?.phone && (
                 <>
                   <Button 
                     variant="outline" 
                     size="sm"
-                    className="gap-2 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10"
+                    className="gap-2 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10 transition-transform active:scale-95"
                     onClick={() => openWhatsApp()}
                   >
                     <MessageSquare className="w-4 h-4" />
@@ -661,7 +701,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
                   <Button 
                     variant="outline" 
                     size="sm"
-                    className="gap-2"
+                    className="gap-2 transition-transform active:scale-95"
                     onClick={() => window.open(`tel:${client.phone}`)}
                   >
                     <Phone className="w-4 h-4" />
@@ -673,7 +713,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 transition-transform active:scale-95"
                   onClick={openEmail}
                 >
                   <Mail className="w-4 h-4" />
@@ -774,6 +814,16 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
 
       {/* Confetti Effect */}
       <InvoiceConfetti trigger={showConfetti} />
+
+      {/* Reject Confirmation Dialog */}
+      <RejectConfirmDialog
+        isOpen={rejectDialogOpen}
+        onClose={() => setRejectDialogOpen(false)}
+        onArchive={handleArchiveRejected}
+        onDelete={handleDeleteRejected}
+        workTitle={work.title}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

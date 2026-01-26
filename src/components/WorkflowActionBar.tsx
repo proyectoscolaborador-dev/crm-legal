@@ -40,6 +40,7 @@ interface WorkflowActionBarProps {
   onIssueInvoice: () => void;
   isLoading?: boolean;
   isReadOnly?: boolean;
+  hideDecisionButtons?: boolean; // Hide accept/reject in "en obra" phase
 }
 
 export function WorkflowActionBar({
@@ -50,6 +51,7 @@ export function WorkflowActionBar({
   onIssueInvoice,
   isLoading = false,
   isReadOnly = false,
+  hideDecisionButtons = false,
 }: WorkflowActionBarProps) {
   const phase = getWorkflowPhase(estado);
 
@@ -91,27 +93,27 @@ export function WorkflowActionBar({
         </div>
       )}
 
-      {/* Phase 1b: Enviado - Show Accept/Reject buttons */}
-      {estado === 'enviado' && (
+      {/* Phase 1b: Enviado - Show Accept/Reject buttons (unless hidden) */}
+      {estado === 'enviado' && !hideDecisionButtons && (
         <>
           <Button
             type="button"
             onClick={onAccept}
             disabled={false}
-            className="flex-1 h-12 gap-2 bg-success hover:bg-success/90 text-success-foreground font-semibold text-base"
+            className="flex-1 h-12 gap-2 bg-success hover:bg-success/90 text-success-foreground font-semibold text-base transition-transform active:scale-95"
           >
             <Check className="h-5 w-5" />
-            ✅ ACEPTAR PRESUPUESTO
+            ✅ PRESUPUESTO ACEPTADO
           </Button>
           <Button
             type="button"
             variant="outline"
             onClick={onReject}
             disabled={false}
-            className="flex-1 h-12 gap-2 border-destructive text-destructive hover:bg-destructive/10 font-semibold text-base"
+            className="flex-1 h-12 gap-2 border-destructive text-destructive hover:bg-destructive/10 font-semibold text-base transition-transform active:scale-95"
           >
             <X className="h-5 w-5" />
-            ❌ RECHAZAR
+            ❌ PRESUPUESTO RECHAZADO
           </Button>
         </>
       )}
@@ -127,7 +129,7 @@ export function WorkflowActionBar({
             type="button"
             onClick={onWorkCompleted}
             disabled={false}
-            className="w-full h-14 gap-3 bg-warning hover:bg-warning/90 text-warning-foreground font-bold text-lg"
+            className="w-full h-14 gap-3 bg-warning hover:bg-warning/90 text-warning-foreground font-bold text-lg transition-transform active:scale-95"
           >
             <Flag className="h-6 w-6" />
             🏁 TRABAJO REALIZADO
@@ -146,7 +148,7 @@ export function WorkflowActionBar({
             type="button"
             onClick={onIssueInvoice}
             disabled={false}
-            className="w-full h-14 gap-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-lg shadow-lg"
+            className="w-full h-14 gap-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-lg shadow-lg transition-transform active:scale-95"
           >
             <FileText className="h-6 w-6" />
             📄 EMITIR FACTURA DEFINITIVA
