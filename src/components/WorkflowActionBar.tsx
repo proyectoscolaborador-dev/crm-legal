@@ -83,8 +83,16 @@ export function WorkflowActionBar({
 
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 py-3">
-      {/* Phase 1: Commercial (Borrador, Enviado) */}
-      {phase === 'commercial' && (
+      {/* Phase 1: Borrador - Only show status, no action buttons */}
+      {estado === 'borrador' && (
+        <div className="flex items-center gap-2 py-3 px-4 bg-muted border border-border rounded-lg w-full">
+          <FileText className="h-5 w-5 text-muted-foreground" />
+          <span className="font-medium text-muted-foreground">📝 Borrador - Completa el presupuesto y envíalo al cliente</span>
+        </div>
+      )}
+
+      {/* Phase 1b: Enviado - Show Accept/Reject buttons */}
+      {estado === 'enviado' && (
         <>
           <Button
             type="button"
