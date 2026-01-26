@@ -1,21 +1,12 @@
-import { WorkWithClient, WorkStatus, STAGE_ORDER } from '@/types/database';
-import { StageRow } from './StageRow';
+import { WorkWithClient, WorkStatus, STAGE_CONFIG } from '@/types/database';
+import { StageSection } from './StageSection';
 
 interface VerticalPipelineProps {
   works: WorkWithClient[];
   onWorkClick: (work: WorkWithClient) => void;
-  onDeleteWork?: (workId: string) => void;
-  onStatusChange?: (workId: string, newStatus: WorkStatus) => void;
-  onMarkAsPaid?: (workId: string) => void;
 }
 
-export function VerticalPipeline({ 
-  works, 
-  onWorkClick, 
-  onDeleteWork,
-  onStatusChange,
-  onMarkAsPaid 
-}: VerticalPipelineProps) {
+export function VerticalPipeline({ works, onWorkClick }: VerticalPipelineProps) {
   // Filter out cobrado (paid) works - they go to history
   const activeWorks = works.filter(w => w.status !== 'cobrado' && w.status !== 'trabajo_terminado');
 
@@ -25,7 +16,7 @@ export function VerticalPipeline({
       .sort((a, b) => a.position - b.position);
   };
 
-  // Only show stages that have works or are primary stages
+  // All stages - always show even if empty
   const stagesToShow: WorkStatus[] = [
     'presupuesto_solicitado',
     'presupuesto_enviado',
@@ -39,20 +30,17 @@ export function VerticalPipeline({
       {stagesToShow.map(status => {
         const stageWorks = getWorksByStatus(status);
         return (
-          <StageRow
+          <StageSection
             key={status}
             status={status}
             works={stageWorks}
             onWorkClick={onWorkClick}
-            onDeleteWork={onDeleteWork}
-            onStatusChange={onStatusChange}
-            onMarkAsPaid={onMarkAsPaid}
           />
         );
       })}
 
-      {/* Empty state */}
-      {activeWorks.length === 0 && (
+      {/* Empty state when no works at all */}
+      {works.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-lg">No hay trabajos activos</p>
           <p className="text-sm mt-1">Pulsa el botón + para crear un nuevo trabajo</p>
