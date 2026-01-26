@@ -139,6 +139,18 @@ export default function Index() {
         images: workData.images || [],
       });
       
+      // Calculate initial partida from work amount if provided
+      const initialAmount = workData.amount || 0;
+      const initialPartidas = initialAmount > 0 
+        ? [{
+            id: crypto.randomUUID(),
+            concepto: workData.title || 'Trabajo inicial',
+            cantidad: 1,
+            precio_unidad: initialAmount / 1.21, // Remove IVA for base price
+            importe_linea: initialAmount / 1.21,
+          }]
+        : [];
+      
       await createPresupuesto.mutateAsync({
         numero_presupuesto: getNextNumero(),
         cliente_nombre: workData.clientData.name || 'Sin nombre',
@@ -151,7 +163,7 @@ export default function Index() {
         cliente_provincia: workData.clientData.province,
         descripcion_trabajo_larga: workData.description,
         obra_titulo: workData.title,
-        partidas: [],
+        partidas: initialPartidas,
         iva_porcentaje: 21,
         estado_presupuesto: 'borrador',
         fecha_presupuesto: new Date().toISOString().split('T')[0],
@@ -260,6 +272,7 @@ export default function Index() {
             <VerticalPipeline 
               works={works} 
               onWorkClick={handleWorkClick}
+              onDeleteClick={handleDeleteWorkClick}
             />
           </TabsContent>
 
@@ -287,6 +300,7 @@ export default function Index() {
             <VerticalPipeline 
               works={works} 
               onWorkClick={handleWorkClick}
+              onDeleteClick={handleDeleteWorkClick}
             />
           )}
           {activeTab === 'calendar' && (

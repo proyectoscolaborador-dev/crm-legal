@@ -16,17 +16,20 @@ import {
   Mail,
   Phone,
   Loader2,
-  Euro,
   CheckCircle,
   AlertTriangle,
   Flag,
   Receipt,
   Wallet,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { generatePresupuestoPdf, downloadPdf } from '@/lib/pdfGenerator';
 import { PdfPreviewModal } from '@/components/PdfPreviewModal';
+import { ImageGallery } from '@/components/ImageGallery';
+import { SendConfirmDialog } from '@/components/SendConfirmDialog';
+import { InvoiceConfetti } from '@/components/InvoiceConfetti';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,12 +46,13 @@ interface WorkDetailViewProps {
   onClose: () => void;
   onStatusChange: (workId: string, status: WorkStatus) => void;
   onMarkAsPaid: (workId: string) => void;
+  onDeleteWork?: (workId: string) => void;
 }
 
-export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: WorkDetailViewProps) {
+export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, onDeleteWork }: WorkDetailViewProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { updateAdvancePayment, updateWorkStatus } = useWorks();
+  const { updateAdvancePayment, updateWorkStatus, updateWork } = useWorks();
   const { presupuestos, updatePresupuesto } = usePresupuestos();
   const { empresa, isEmpresaComplete } = useEmpresa();
   
@@ -57,7 +61,12 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [confirmDialog, setConfirmDialog] = useState<'finish' | 'paid' | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<'finish' | 'paid' | 'invoice' | null>(null);
+  const [sendConfirmDialog, setSendConfirmDialog] = useState<'whatsapp' | 'email' | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  
+  // Local images state for editing
+  const [localImages, setLocalImages] = useState<string[]>(work.images || []);
 
   const client = work.client;
   const linkedPresupuesto = presupuestos.find(p => p.work_id === work.id);
@@ -188,10 +197,35 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
     }
   };
 
-  const handleSendBudget = async () => {
+  // Handle image changes - save to DB
+  const handleImagesChange = (newImages: string[]) => {
+    setLocalImages(newImages);
+    updateWork.mutate({ id: work.id, images: newImages });
+  };
+
+  const handleSendWhatsAppClick = () => {
+    if (!linkedPresupuesto) {
+      toast.error('Primero edita el presupuesto');
+      return;
+    }
+    setSendConfirmDialog('whatsapp');
+  };
+
+  const handleSendEmailClick = () => {
+    if (!linkedPresupuesto) {
+      toast.error('Primero edita el presupuesto');
+      return;
+    }
+    setSendConfirmDialog('email');
+  };
+
+  const handleConfirmSend = async () => {
     if (!linkedPresupuesto || !empresa) return;
     
+    const sendType = sendConfirmDialog;
+    setSendConfirmDialog(null);
     setIsGeneratingPdf(true);
+    
     try {
       const blob = await generatePresupuestoPdf({
         presupuesto: linkedPresupuesto,
@@ -215,12 +249,15 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
       const filename = `Presupuesto-${linkedPresupuesto.numero_presupuesto.replace(/\//g, '-')}.pdf`;
       downloadPdf(blob, filename);
 
-      if (client?.phone) {
+      if (sendType === 'whatsapp' && client?.phone) {
         const message = `Hola ${client.name}, te envío el presupuesto para "${work.title}".`;
         openWhatsApp(message);
+      } else if (sendType === 'email' && client?.email) {
+        openEmail();
       }
 
-      toast.success('Presupuesto enviado');
+      toast.success('Presupuesto enviado - Pasando a "Enviados"');
+      onClose(); // Return to main screen to see the work in new phase
     } catch (error) {
       toast.error('Error al enviar');
     } finally {
@@ -234,8 +271,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
   };
 
   const handleRejectBudget = () => {
-    // Could add confirmation dialog here
-    onStatusChange(work.id, 'presupuesto_solicitado'); // Or delete
+    onStatusChange(work.id, 'presupuesto_solicitado');
     toast.info('Presupuesto rechazado');
   };
 
@@ -254,7 +290,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
 
     updateAdvancePayment.mutate({ id: work.id, advance_payments: newTotal });
     setAdvanceAmount('');
-    toast.success('Anticipo registrado');
+    toast.success(`Anticipo de ${formatCurrency(amount)} registrado`);
   };
 
   const handleWorkFinished = () => {
@@ -262,10 +298,33 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
   };
 
   const confirmWorkFinished = async () => {
-    // Move to pending invoice first
     onStatusChange(work.id, 'pendiente_facturar');
     toast.success('Trabajo terminado. Pendiente de facturar.');
     setConfirmDialog(null);
+  };
+
+  const handleIssueInvoice = () => {
+    setConfirmDialog('invoice');
+  };
+
+  const confirmIssueInvoice = async () => {
+    // Fire confetti
+    setShowConfetti(true);
+    
+    // Update status
+    onStatusChange(work.id, 'factura_enviada');
+    
+    // Generate invoice number if not exists
+    if (!work.invoice_number) {
+      const invoiceNumber = `FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+      updateWork.mutate({ id: work.id, invoice_number: invoiceNumber });
+    }
+    
+    toast.success('🎉 ¡Factura emitida correctamente!', { duration: 5000 });
+    setConfirmDialog(null);
+    
+    // Reset confetti after animation
+    setTimeout(() => setShowConfetti(false), 4000);
   };
 
   const handleRegisterPayment = () => {
@@ -279,12 +338,11 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
     updateAdvancePayment.mutate({ id: work.id, advance_payments: newTotal });
     setPaymentAmount('');
 
-    // Check if fully paid
     if (newTotal >= total) {
       onMarkAsPaid(work.id);
-      toast.success('¡Factura cobrada completamente!');
+      toast.success('¡Factura cobrada completamente! Pasando a Histórico...');
     } else {
-      toast.success('Cobro registrado');
+      toast.success(`Cobro de ${formatCurrency(amount)} registrado`);
     }
   };
 
@@ -295,12 +353,9 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
   const confirmMarkFullyPaid = () => {
     updateAdvancePayment.mutate({ id: work.id, advance_payments: total });
     onMarkAsPaid(work.id);
-    toast.success('¡Factura cobrada completamente!');
+    toast.success('¡Factura cobrada completamente! Pasando a Histórico...');
     setConfirmDialog(null);
   };
-
-  // Get work image or placeholder
-  const workImage = work.images && work.images.length > 0 ? work.images[0] : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-background">
@@ -316,27 +371,17 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
 
       {/* Layout - Split on desktop, stacked on mobile */}
       <div className={`h-full ${isMobile ? 'flex flex-col' : 'flex'}`}>
-        {/* Left Side - Image */}
-        <div className={`relative ${isMobile ? 'h-48' : 'w-1/2 h-full'} bg-muted`}>
-          {workImage ? (
-            <img 
-              src={workImage} 
-              alt={work.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
-              <div className="text-center text-muted-foreground">
-                <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-muted-foreground/10 flex items-center justify-center">
-                  <Receipt className="w-8 h-8" />
-                </div>
-                <p className="text-sm">Sin imagen</p>
-              </div>
-            </div>
-          )}
+        {/* Left Side - Image Gallery */}
+        <div className={`relative ${isMobile ? 'h-48' : 'w-1/2 h-full'}`}>
+          <ImageGallery 
+            images={localImages}
+            onImagesChange={handleImagesChange}
+            editable={true}
+            className="w-full h-full"
+          />
           
           {/* Overlay with title */}
-          <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background/90 to-transparent">
+          <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background/90 to-transparent pointer-events-none">
             <h1 className="text-2xl font-bold text-foreground mb-1">{work.title}</h1>
             <p className="text-muted-foreground">{client?.company || client?.name}</p>
           </div>
@@ -480,14 +525,14 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
                 onClick={handleAcceptBudget}
               >
                 <CheckCircle className="w-5 h-5" />
-                ✅ ACEPTAR PRESUPUESTO
+                ✅ PRESUPUESTO ACEPTADO
               </Button>
               <Button 
                 variant="destructive"
                 className="w-full h-12 gap-2"
                 onClick={handleRejectBudget}
               >
-                ❌ RECHAZAR PRESUPUESTO
+                ❌ PRESUPUESTO RECHAZADO
               </Button>
             </div>
           )}
@@ -504,11 +549,11 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
 
           {phase === 'pendingInvoice' && (
             <Button 
-              className="w-full h-14 text-lg gap-2 bg-purple-500 hover:bg-purple-600"
-              onClick={() => onStatusChange(work.id, 'factura_enviada')}
+              className="w-full h-14 text-lg gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-lg"
+              onClick={handleIssueInvoice}
             >
               <Receipt className="w-5 h-5" />
-              📄 EMITIR FACTURA
+              📄 EMITIR FACTURA DEFINITIVA
             </Button>
           )}
 
@@ -558,11 +603,11 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
             </div>
 
             {/* Send by WhatsApp - Draft phase */}
-            {phase === 'draft' && (
+            {phase === 'draft' && client?.phone && (
               <Button 
                 className="w-full gap-2 bg-emerald-500 hover:bg-emerald-600"
-                onClick={handleSendBudget}
-                disabled={isGeneratingPdf}
+                onClick={handleSendWhatsAppClick}
+                disabled={isGeneratingPdf || !linkedPresupuesto}
               >
                 {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
                 Enviar por WhatsApp
@@ -574,15 +619,16 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
               <Button 
                 variant="outline"
                 className="w-full gap-2"
-                onClick={openEmail}
+                onClick={handleSendEmailClick}
+                disabled={isGeneratingPdf || !linkedPresupuesto}
               >
                 <Mail className="w-4 h-4" />
                 Enviar por Email
               </Button>
             )}
 
-            {/* Edit Budget - Only for Sent and InProgress phases (not draft since main button is Edit) */}
-            {(phase === 'sent' || phase === 'inProgress') && (
+            {/* Edit Budget - Only for Sent, InProgress, and PendingInvoice phases */}
+            {(phase === 'sent' || phase === 'inProgress' || phase === 'pendingInvoice') && (
               <Button 
                 variant="outline" 
                 className="w-full gap-2"
@@ -691,6 +737,43 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Confirmation Dialog - Issue Invoice */}
+      <AlertDialog open={confirmDialog === 'invoice'} onOpenChange={() => setConfirmDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-amber-500" />
+              ¿Emitir factura definitiva?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Se generará un número de factura único y el documento quedará bloqueado. Esta acción es irreversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmIssueInvoice} 
+              className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
+            >
+              📄 Emitir Factura
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Send Confirmation Dialog */}
+      <SendConfirmDialog
+        isOpen={sendConfirmDialog !== null}
+        onClose={() => setSendConfirmDialog(null)}
+        onConfirm={handleConfirmSend}
+        type={sendConfirmDialog || 'whatsapp'}
+        clientName={client?.name}
+        presupuestoTitle={work.title}
+      />
+
+      {/* Confetti Effect */}
+      <InvoiceConfetti trigger={showConfetti} />
     </div>
   );
 }

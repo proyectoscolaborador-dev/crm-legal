@@ -4,9 +4,10 @@ import { StageSection } from './StageSection';
 interface VerticalPipelineProps {
   works: WorkWithClient[];
   onWorkClick: (work: WorkWithClient) => void;
+  onDeleteClick?: (workId: string) => void;
 }
 
-export function VerticalPipeline({ works, onWorkClick }: VerticalPipelineProps) {
+export function VerticalPipeline({ works, onWorkClick, onDeleteClick }: VerticalPipelineProps) {
   // Filter out cobrado (paid) works - they go to history
   const activeWorks = works.filter(w => w.status !== 'cobrado' && w.status !== 'trabajo_terminado');
 
@@ -35,6 +36,7 @@ export function VerticalPipeline({ works, onWorkClick }: VerticalPipelineProps) 
             status={status}
             works={stageWorks}
             onWorkClick={onWorkClick}
+            onDeleteClick={onDeleteClick}
           />
         );
       })}

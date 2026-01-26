@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { WorkWithClient } from '@/types/database';
-import { CompactWorkList } from './CompactWorkList';
 import { Card, CardContent } from '@/components/ui/card';
-import { Archive, Euro, ChevronDown, ChevronUp } from 'lucide-react';
+import { Archive, Euro, ChevronDown, ChevronUp, Building2, Calendar, Receipt, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface HistorySectionProps {
   works: WorkWithClient[];
@@ -12,12 +12,12 @@ interface HistorySectionProps {
 
 export function HistorySection({ works, onWorkClick }: HistorySectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   
-  // Filter for completed/paid works
+  // Filter for completed/paid works only
   const historyWorks = works.filter(w => 
     w.status === 'cobrado' || 
-    w.status === 'trabajo_terminado' ||
-    w.is_paid
+    (w.status === 'trabajo_terminado' && w.is_paid)
   ).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
   const totalCobrado = historyWorks.reduce((sum, w) => sum + Number(w.amount), 0);
@@ -28,6 +28,24 @@ export function HistorySection({ works, onWorkClick }: HistorySectionProps) {
       currency: 'EUR',
       maximumFractionDigits: 0,
     }).format(value);
+  };
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const toggleItem = (id: string) => {
+    const newSet = new Set(expandedItems);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setExpandedItems(newSet);
   };
 
   return (
@@ -41,7 +59,7 @@ export function HistorySection({ works, onWorkClick }: HistorySectionProps) {
                 <Euro className="h-5 w-5 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Facturado</p>
+                <p className="text-sm text-muted-foreground">Total Facturado y Cobrado</p>
                 <p className="text-xl font-bold text-success">{formatCurrency(totalCobrado)}</p>
               </div>
             </div>
@@ -81,7 +99,84 @@ export function HistorySection({ works, onWorkClick }: HistorySectionProps) {
         {isExpanded && (
           <div className="bg-background/50">
             {historyWorks.length > 0 ? (
-              <CompactWorkList works={historyWorks} onWorkClick={onWorkClick} />
+              <div className="divide-y divide-border">
+                {historyWorks.map(work => (
+                  <Collapsible
+                    key={work.id}
+                    open={expandedItems.has(work.id)}
+                    onOpenChange={() => toggleItem(work.id)}
+                  >
+                    <CollapsibleTrigger className="w-full p-3 flex items-center justify-between hover:bg-muted/30 transition-colors text-left">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            {work.client?.company && (
+                              <Building2 className="w-3.5 h-3.5 text-success flex-shrink-0" />
+                            )}
+                            <span className="font-medium text-foreground truncate">
+                              {work.client?.company || work.client?.name || 'Sin cliente'}
+                            </span>
+                            <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
+                              ✅ Cobrado
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">{work.title}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right">
+                          <p className="font-semibold text-success">
+                            {formatCurrency(Number(work.amount))}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(work.updated_at)}
+                          </p>
+                        </div>
+                        {expandedItems.has(work.id) ? (
+                          <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </CollapsibleTrigger>
+                    
+                    <CollapsibleContent>
+                      <div className="px-3 pb-3 space-y-2">
+                        <div className="p-3 rounded-lg bg-muted/30 space-y-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">Cliente:</span>
+                            <span className="font-medium">{work.client?.name}</span>
+                          </div>
+                          {work.invoice_number && (
+                            <div className="flex items-center gap-2">
+                              <Receipt className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">Nº Factura:</span>
+                              <span className="font-medium">{work.invoice_number}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">Fecha cobro:</span>
+                            <span className="font-medium">{formatDate(work.updated_at)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Euro className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">Total cobrado:</span>
+                            <span className="font-medium text-success">{formatCurrency(Number(work.amount))}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => onWorkClick(work)}
+                          className="text-sm text-primary hover:underline"
+                        >
+                          Ver detalle completo →
+                        </button>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))}
+              </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Archive className="w-12 h-12 mx-auto mb-2 opacity-30" />

@@ -7,6 +7,7 @@ interface StageSectionProps {
   status: WorkStatus;
   works: WorkWithClient[];
   onWorkClick: (work: WorkWithClient) => void;
+  onDeleteClick?: (workId: string) => void;
 }
 
 const STAGE_ICONS: Record<WorkStatus, React.ReactNode> = {
@@ -19,7 +20,7 @@ const STAGE_ICONS: Record<WorkStatus, React.ReactNode> = {
   cobrado: <Wallet className="w-5 h-5" />,
 };
 
-export function StageSection({ status, works, onWorkClick }: StageSectionProps) {
+export function StageSection({ status, works, onWorkClick, onDeleteClick }: StageSectionProps) {
   const [isExpanded, setIsExpanded] = useState(works.length > 0);
   const config = STAGE_CONFIG[status];
   const totalAmount = works.reduce((sum, w) => sum + Number(w.amount), 0);
@@ -63,7 +64,7 @@ export function StageSection({ status, works, onWorkClick }: StageSectionProps) 
       {/* Works List - Compact */}
       {isExpanded && (
         <div className="bg-background/50">
-          <CompactWorkList works={works} onWorkClick={onWorkClick} />
+          <CompactWorkList works={works} onWorkClick={onWorkClick} onDeleteClick={onDeleteClick} />
         </div>
       )}
     </div>
