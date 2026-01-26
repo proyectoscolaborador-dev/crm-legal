@@ -10,7 +10,7 @@ import { WorkWithClientData } from '@/components/CreateWorkModal';
 import { Header } from '@/components/Header';
 import { AlertsSection } from '@/components/AlertsSection';
 import { VerticalPipeline } from '@/components/VerticalPipeline';
-import { ClientPanel } from '@/components/ClientPanel';
+import { WorkDetailView } from '@/components/WorkDetailView';
 import { CreateWorkModal } from '@/components/CreateWorkModal';
 import { ImportCSV } from '@/components/ImportCSV';
 import { CalendarView } from '@/components/CalendarView';
@@ -19,10 +19,10 @@ import { MobileNav } from '@/components/MobileNav';
 import { NewClientModal } from '@/components/NewClientModal';
 import { DeleteWorkDialog } from '@/components/DeleteWorkDialog';
 import { GeminiAssistant } from '@/components/GeminiAssistant';
-import { HistoryList } from '@/components/HistoryList';
+import { HistorySection } from '@/components/HistorySection';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigate } from 'react-router-dom';
-import { Loader2, Home, Calendar, Users, BarChart3 } from 'lucide-react';
+import { Loader2, Home, Calendar, Users, BarChart3, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Index() {
@@ -34,7 +34,7 @@ export default function Index() {
   const { presupuestos, createPresupuesto, deletePresupuesto, getNextNumero } = usePresupuestos();
 
   const [selectedWork, setSelectedWork] = useState<WorkWithClient | null>(null);
-  const [isClientPanelOpen, setIsClientPanelOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
@@ -59,7 +59,6 @@ export default function Index() {
   }
 
   const handleNewWorkClick = () => {
-    // Check if empresa data is complete before allowing work creation
     if (!isEmpresaComplete) {
       toast.error('Debes completar los datos de tu empresa antes de crear trabajos');
       navigate('/mis-datos-empresa', { state: { returnTo: '/' } });
@@ -70,7 +69,12 @@ export default function Index() {
 
   const handleWorkClick = (work: WorkWithClient) => {
     setSelectedWork(work);
-    setIsClientPanelOpen(true);
+    setIsDetailOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
+    setSelectedWork(null);
   };
 
   const handleStatusChange = (workId: string, status: WorkStatus) => {
@@ -80,7 +84,6 @@ export default function Index() {
 
   const handleMarkAsPaid = (workId: string) => {
     markAsPaid.mutate(workId);
-    // Also update status to cobrado
     const work = works.find(w => w.id === workId);
     if (work) {
       updateWorkStatus.mutate({ id: workId, status: 'cobrado', position: work.position });
@@ -122,12 +125,10 @@ export default function Index() {
     return result as Client;
   };
 
-  // Uses data directly from the form, not from database lookup
   const handleCreateWorkWithPresupuesto = async (workData: WorkWithClientData) => {
     setIsCreatingWork(true);
 
     try {
-      // Create work first with images
       const newWork = await createWork.mutateAsync({
         client_id: workData.client_id,
         title: workData.title,
@@ -138,8 +139,6 @@ export default function Index() {
         images: workData.images || [],
       });
       
-      // Auto-create presupuesto using CLIENT DATA FROM FORM (not from DB lookup)
-      // This avoids timing issues where the client isn't in the cache yet
       await createPresupuesto.mutateAsync({
         numero_presupuesto: getNextNumero(),
         cliente_nombre: workData.clientData.name || 'Sin nombre',
@@ -172,7 +171,6 @@ export default function Index() {
     }
   };
 
-  // Handle delete work from card
   const handleDeleteWorkClick = (workId: string) => {
     setWorkToDelete(workId);
     setDeleteDialogOpen(true);
@@ -183,12 +181,10 @@ export default function Index() {
     
     setIsDeleting(true);
     try {
-      // Find and delete linked presupuesto first
       const linkedPresupuesto = presupuestos.find(p => p.work_id === workToDelete);
       if (linkedPresupuesto) {
         await deletePresupuesto.mutateAsync(linkedPresupuesto.id);
       }
-      // Then delete the work
       await deleteWork.mutateAsync(workToDelete);
     } catch (error) {
       console.error('Error deleting work:', error);
@@ -202,7 +198,6 @@ export default function Index() {
 
   const workToDeleteData = works.find(w => w.id === workToDelete);
 
-  // Handle analytics tab - navigate to analytics page
   const handleTabChange = (tab: string) => {
     if (tab === 'analytics') {
       navigate('/analiticas');
@@ -210,6 +205,21 @@ export default function Index() {
       setActiveTab(tab);
     }
   };
+
+  // Show full-screen detail view when work is selected
+  if (isDetailOpen && selectedWork) {
+    return (
+      <>
+        <WorkDetailView
+          work={selectedWork}
+          onClose={handleCloseDetail}
+          onStatusChange={handleStatusChange}
+          onMarkAsPaid={handleMarkAsPaid}
+        />
+        <GeminiAssistant />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
@@ -220,7 +230,6 @@ export default function Index() {
       />
 
       <main className="container px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* No Dashboard stats here - moved to Analytics */}
         <AlertsSection works={works} onWorkClick={handleWorkClick} />
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="hidden md:block">
@@ -237,6 +246,10 @@ export default function Index() {
               <Users className="w-4 h-4" />
               Clientes
             </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2">
+              <Archive className="w-4 h-4" />
+              Histórico
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="w-4 h-4" />
               Analíticas
@@ -247,9 +260,6 @@ export default function Index() {
             <VerticalPipeline 
               works={works} 
               onWorkClick={handleWorkClick}
-              onDeleteWork={handleDeleteWorkClick}
-              onStatusChange={handleStatusChange}
-              onMarkAsPaid={handleMarkAsPaid}
             />
           </TabsContent>
 
@@ -265,6 +275,10 @@ export default function Index() {
               onUpdateClient={(updates) => updateClient.mutate(updates)}
             />
           </TabsContent>
+
+          <TabsContent value="history" className="mt-4">
+            <HistorySection works={works} onWorkClick={handleWorkClick} />
+          </TabsContent>
         </Tabs>
 
         {/* Mobile Content */}
@@ -273,9 +287,6 @@ export default function Index() {
             <VerticalPipeline 
               works={works} 
               onWorkClick={handleWorkClick}
-              onDeleteWork={handleDeleteWorkClick}
-              onStatusChange={handleStatusChange}
-              onMarkAsPaid={handleMarkAsPaid}
             />
           )}
           {activeTab === 'calendar' && (
@@ -289,18 +300,13 @@ export default function Index() {
               onUpdateClient={(updates) => updateClient.mutate(updates)}
             />
           )}
+          {activeTab === 'history' && (
+            <HistorySection works={works} onWorkClick={handleWorkClick} />
+          )}
         </div>
       </main>
 
       <MobileNav activeTab={activeTab} onTabChange={handleTabChange} onImportCSV={() => setIsImportOpen(true)} />
-
-      <ClientPanel
-        work={selectedWork}
-        allWorks={works}
-        isOpen={isClientPanelOpen}
-        onClose={() => setIsClientPanelOpen(false)}
-        onUpdateWork={(updates) => updateWork.mutate(updates)}
-      />
 
       <CreateWorkModal
         isOpen={isCreateModalOpen}
@@ -331,7 +337,6 @@ export default function Index() {
 
       <ImportCSV isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={handleImportClients} />
 
-      {/* Delete Work Confirmation Dialog */}
       <DeleteWorkDialog
         isOpen={deleteDialogOpen}
         onClose={() => {

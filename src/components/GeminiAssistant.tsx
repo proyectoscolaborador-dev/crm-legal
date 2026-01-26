@@ -69,22 +69,22 @@ export function GeminiAssistant() {
 
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Button - Large and Prominent */}
       <Button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-secondary shadow-lg hover:shadow-xl transition-all duration-300"
+        className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-40 w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-primary via-secondary to-primary shadow-2xl hover:shadow-primary/50 hover:scale-110 transition-all duration-300 animate-pulse hover:animate-none"
         size="icon"
       >
         {isOpen ? (
-          <X className="w-6 h-6 text-white" />
+          <X className="w-8 h-8 md:w-10 md:h-10 text-white" />
         ) : (
-          <Sparkles className="w-6 h-6 text-white" />
+          <Sparkles className="w-8 h-8 md:w-10 md:h-10 text-white" />
         )}
       </Button>
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-36 right-4 md:bottom-24 md:right-6 z-50 w-[calc(100vw-2rem)] max-w-md h-[500px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4">
+        <div className="fixed bottom-44 right-4 md:bottom-32 md:right-8 z-40 w-[calc(100vw-2rem)] max-w-lg h-[60vh] max-h-[600px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4">
           {/* Header */}
           <div className="p-4 border-b border-border bg-gradient-to-r from-primary/10 to-secondary/10">
             <div className="flex items-center gap-3">
