@@ -344,11 +344,28 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
 
         {/* Right Side - Management Column */}
         <div className={`${isMobile ? 'flex-1' : 'w-1/2'} overflow-y-auto p-6 space-y-6`}>
-          {/* 1. Header - Client Name */}
+          {/* 1. Header - Client Name + Status Badge */}
           <div>
-            <h2 className="text-xl font-bold text-foreground">
-              {client?.company || client?.name || 'Sin cliente'}
-            </h2>
+            <div className="flex items-center gap-3 mb-1">
+              <h2 className="text-xl font-bold text-foreground">
+                {client?.company || client?.name || 'Sin cliente'}
+              </h2>
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                phase === 'draft' ? 'bg-muted text-muted-foreground' :
+                phase === 'sent' ? 'bg-blue-500/20 text-blue-500' :
+                phase === 'inProgress' ? 'bg-warning/20 text-warning' :
+                phase === 'pendingInvoice' ? 'bg-purple-500/20 text-purple-500' :
+                phase === 'invoiced' ? 'bg-orange-500/20 text-orange-500' :
+                'bg-success/20 text-success'
+              }`}>
+                {phase === 'draft' && '📝 Borrador'}
+                {phase === 'sent' && '📤 Enviado'}
+                {phase === 'inProgress' && '🔧 En Obra'}
+                {phase === 'pendingInvoice' && '🏁 Pdte. Facturar'}
+                {phase === 'invoiced' && '💳 Facturado'}
+                {phase === 'paid' && '✅ Cobrado'}
+              </span>
+            </div>
             {client?.company && client?.name && (
               <p className="text-muted-foreground">{client.name}</p>
             )}
@@ -526,7 +543,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
                 disabled={isGeneratingPdf || !linkedPresupuesto}
               >
                 {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                Previsualizar
+                Ver PDF
               </Button>
               
               <Button 
@@ -540,7 +557,32 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
               </Button>
             </div>
 
-            {(phase === 'draft' || phase === 'inProgress') && (
+            {/* Send by WhatsApp - Draft phase */}
+            {phase === 'draft' && (
+              <Button 
+                className="w-full gap-2 bg-emerald-500 hover:bg-emerald-600"
+                onClick={handleSendBudget}
+                disabled={isGeneratingPdf}
+              >
+                {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                Enviar por WhatsApp
+              </Button>
+            )}
+
+            {/* Send by Email - Draft phase */}
+            {phase === 'draft' && client?.email && (
+              <Button 
+                variant="outline"
+                className="w-full gap-2"
+                onClick={openEmail}
+              >
+                <Mail className="w-4 h-4" />
+                Enviar por Email
+              </Button>
+            )}
+
+            {/* Edit Budget - Only for Sent and InProgress phases (not draft since main button is Edit) */}
+            {(phase === 'sent' || phase === 'inProgress') && (
               <Button 
                 variant="outline" 
                 className="w-full gap-2"
@@ -548,17 +590,6 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid }: 
               >
                 <Edit className="w-4 h-4" />
                 Editar Presupuesto
-              </Button>
-            )}
-
-            {phase === 'draft' && (
-              <Button 
-                className="w-full gap-2 bg-secondary hover:bg-secondary/90"
-                onClick={handleSendBudget}
-                disabled={isGeneratingPdf}
-              >
-                {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
-                Enviar por WhatsApp
               </Button>
             )}
           </div>
