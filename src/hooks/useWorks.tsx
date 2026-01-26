@@ -23,7 +23,13 @@ export function useWorks() {
         .order('position', { ascending: true });
       
       if (error) throw error;
-      return data as WorkWithClient[];
+      
+      // Map the data to ensure images is an array
+      return (data || []).map(work => ({
+        ...work,
+        images: Array.isArray(work.images) ? work.images : [],
+        advance_payments: work.advance_payments || 0,
+      })) as WorkWithClient[];
     },
     enabled: !!user,
   });
@@ -61,6 +67,7 @@ export function useWorks() {
       amount?: number;
       status?: WorkStatus;
       position?: number;
+      images?: string[];
     }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
@@ -69,6 +76,8 @@ export function useWorks() {
           ...work, 
           user_id: user.id,
           is_paid: false,
+          images: work.images || [],
+          advance_payments: 0,
         })
         .select(`
           *,
@@ -121,6 +130,11 @@ export function useWorks() {
         updates.budget_responded_at = new Date().toISOString();
       }
 
+      // Mark as paid when moving to cobrado
+      if (status === 'cobrado') {
+        updates.is_paid = true;
+      }
+
       const { data, error } = await supabase
         .from('works')
         .update(updates)
@@ -161,7 +175,7 @@ export function useWorks() {
     mutationFn: async (id: string) => {
       const { data, error } = await supabase
         .from('works')
-        .update({ is_paid: true })
+        .update({ is_paid: true, status: 'cobrado' as WorkStatus })
         .eq('id', id)
         .select()
         .single();
@@ -171,10 +185,31 @@ export function useWorks() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['works'] });
-      toast.success('Trabajo marcado como pagado');
+      toast.success('Trabajo marcado como cobrado');
     },
     onError: (error) => {
       toast.error('Error al marcar como pagado: ' + error.message);
+    },
+  });
+
+  const updateAdvancePayment = useMutation({
+    mutationFn: async ({ id, advance_payments }: { id: string; advance_payments: number }) => {
+      const { data, error } = await supabase
+        .from('works')
+        .update({ advance_payments })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['works'] });
+      toast.success('Anticipo actualizado');
+    },
+    onError: (error) => {
+      toast.error('Error al actualizar anticipo: ' + error.message);
     },
   });
 
@@ -186,5 +221,6 @@ export function useWorks() {
     updateWorkStatus,
     deleteWork,
     markAsPaid,
+    updateAdvancePayment,
   };
 }

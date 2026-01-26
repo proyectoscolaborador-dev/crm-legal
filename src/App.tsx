@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import MisDatosEmpresa from "./pages/MisDatosEmpresa";
 import SimpleBudgetEditor from "./pages/SimpleBudgetEditor";
+import Analytics from "./pages/Analytics";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/mis-datos-empresa" element={<MisDatosEmpresa />} />
             <Route path="/presupuesto/nuevo" element={<SimpleBudgetEditor />} />
             <Route path="/presupuesto/:id" element={<SimpleBudgetEditor />} />
+            <Route path="/analiticas" element={<Analytics />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

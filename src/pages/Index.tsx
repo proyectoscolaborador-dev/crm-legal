@@ -8,9 +8,8 @@ import { usePresupuestos } from '@/hooks/usePresupuestos';
 import { WorkWithClient, WorkStatus, Client } from '@/types/database';
 import { WorkWithClientData } from '@/components/CreateWorkModal';
 import { Header } from '@/components/Header';
-import { Dashboard } from '@/components/Dashboard';
 import { AlertsSection } from '@/components/AlertsSection';
-import { KanbanBoard } from '@/components/KanbanBoard';
+import { VerticalPipeline } from '@/components/VerticalPipeline';
 import { ClientPanel } from '@/components/ClientPanel';
 import { CreateWorkModal } from '@/components/CreateWorkModal';
 import { ImportCSV } from '@/components/ImportCSV';
@@ -19,17 +18,18 @@ import { ClientsList } from '@/components/ClientsList';
 import { MobileNav } from '@/components/MobileNav';
 import { NewClientModal } from '@/components/NewClientModal';
 import { DeleteWorkDialog } from '@/components/DeleteWorkDialog';
+import { GeminiAssistant } from '@/components/GeminiAssistant';
+import { HistoryList } from '@/components/HistoryList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Home, Calendar, Users, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
-import { HistoryList } from '@/components/HistoryList';
 
 export default function Index() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { clients, createClient, updateClient, deleteClient } = useClients();
-  const { works, createWork, updateWork, updateWorkStatus, deleteWork, isLoading: worksLoading } = useWorks();
+  const { works, createWork, updateWork, updateWorkStatus, deleteWork, markAsPaid, isLoading: worksLoading } = useWorks();
   const { empresa, isLoading: empresaLoading, isEmpresaComplete } = useEmpresa();
   const { presupuestos, createPresupuesto, deletePresupuesto, getNextNumero } = usePresupuestos();
 
@@ -38,7 +38,7 @@ export default function Index() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('pipeline');
+  const [activeTab, setActiveTab] = useState('inicio');
   const [isCreatingWork, setIsCreatingWork] = useState(false);
   
   // Delete work dialog state
@@ -73,8 +73,18 @@ export default function Index() {
     setIsClientPanelOpen(true);
   };
 
-  const handleStatusChange = (workId: string, status: WorkStatus, position: number) => {
-    updateWorkStatus.mutate({ id: workId, status, position });
+  const handleStatusChange = (workId: string, status: WorkStatus) => {
+    const work = works.find(w => w.id === workId);
+    updateWorkStatus.mutate({ id: workId, status, position: work?.position || 0 });
+  };
+
+  const handleMarkAsPaid = (workId: string) => {
+    markAsPaid.mutate(workId);
+    // Also update status to cobrado
+    const work = works.find(w => w.id === workId);
+    if (work) {
+      updateWorkStatus.mutate({ id: workId, status: 'cobrado', position: work.position });
+    }
   };
 
   const handleImportClients = async (importedClients: Array<{ 
@@ -117,7 +127,7 @@ export default function Index() {
     setIsCreatingWork(true);
 
     try {
-      // Create work first
+      // Create work first with images
       const newWork = await createWork.mutateAsync({
         client_id: workData.client_id,
         title: workData.title,
@@ -125,6 +135,7 @@ export default function Index() {
         amount: workData.amount,
         status: workData.status,
         position: workData.position,
+        images: workData.images || [],
       });
       
       // Auto-create presupuesto using CLIENT DATA FROM FORM (not from DB lookup)
@@ -161,7 +172,7 @@ export default function Index() {
     }
   };
 
-  // Handle delete work from Kanban card
+  // Handle delete work from card
   const handleDeleteWorkClick = (workId: string) => {
     setWorkToDelete(workId);
     setDeleteDialogOpen(true);
@@ -191,6 +202,15 @@ export default function Index() {
 
   const workToDeleteData = works.find(w => w.id === workToDelete);
 
+  // Handle analytics tab - navigate to analytics page
+  const handleTabChange = (tab: string) => {
+    if (tab === 'analytics') {
+      navigate('/analiticas');
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Header
@@ -200,28 +220,37 @@ export default function Index() {
       />
 
       <main className="container px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        <Dashboard works={works} />
+        {/* No Dashboard stats here - moved to Analytics */}
         <AlertsSection works={works} onWorkClick={handleWorkClick} />
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="hidden md:block">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="hidden md:block">
           <TabsList className="bg-muted">
-            <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-            <TabsTrigger value="history">Historial</TabsTrigger>
-            <TabsTrigger value="calendar">Agenda</TabsTrigger>
-            <TabsTrigger value="clients">Clientes</TabsTrigger>
+            <TabsTrigger value="inicio" className="gap-2">
+              <Home className="w-4 h-4" />
+              Inicio
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-2">
+              <Calendar className="w-4 h-4" />
+              Agenda
+            </TabsTrigger>
+            <TabsTrigger value="clients" className="gap-2">
+              <Users className="w-4 h-4" />
+              Clientes
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Analíticas
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="pipeline" className="mt-4">
-            <KanbanBoard 
+          <TabsContent value="inicio" className="mt-4">
+            <VerticalPipeline 
               works={works} 
-              onStatusChange={handleStatusChange} 
               onWorkClick={handleWorkClick}
               onDeleteWork={handleDeleteWorkClick}
+              onStatusChange={handleStatusChange}
+              onMarkAsPaid={handleMarkAsPaid}
             />
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-4">
-            <HistoryList works={works} onWorkClick={handleWorkClick} />
           </TabsContent>
 
           <TabsContent value="calendar" className="mt-4">
@@ -240,16 +269,14 @@ export default function Index() {
 
         {/* Mobile Content */}
         <div className="md:hidden">
-          {activeTab === 'pipeline' && (
-            <KanbanBoard 
+          {activeTab === 'inicio' && (
+            <VerticalPipeline 
               works={works} 
-              onStatusChange={handleStatusChange} 
               onWorkClick={handleWorkClick}
               onDeleteWork={handleDeleteWorkClick}
+              onStatusChange={handleStatusChange}
+              onMarkAsPaid={handleMarkAsPaid}
             />
-          )}
-          {activeTab === 'history' && (
-            <HistoryList works={works} onWorkClick={handleWorkClick} />
           )}
           {activeTab === 'calendar' && (
             <CalendarView works={works} onWorkClick={handleWorkClick} />
@@ -265,7 +292,7 @@ export default function Index() {
         </div>
       </main>
 
-      <MobileNav activeTab={activeTab} onTabChange={setActiveTab} onImportCSV={() => setIsImportOpen(true)} />
+      <MobileNav activeTab={activeTab} onTabChange={handleTabChange} onImportCSV={() => setIsImportOpen(true)} />
 
       <ClientPanel
         work={selectedWork}
@@ -315,6 +342,9 @@ export default function Index() {
         workTitle={workToDeleteData?.title}
         isDeleting={isDeleting}
       />
+
+      {/* Gemini Assistant - Floating Widget */}
+      <GeminiAssistant />
     </div>
   );
 }

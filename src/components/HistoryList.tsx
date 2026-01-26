@@ -11,8 +11,12 @@ interface HistoryListProps {
 }
 
 export function HistoryList({ works, onWorkClick }: HistoryListProps) {
-  // Show completed and paid works
-  const completedWorks = works.filter(w => w.status === 'trabajo_terminado' || w.is_paid);
+  // Show completed, paid, and cobrado works
+  const completedWorks = works.filter(w => 
+    w.status === 'trabajo_terminado' || 
+    w.status === 'cobrado' || 
+    w.is_paid
+  );
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-ES', {
