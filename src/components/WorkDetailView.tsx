@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { WorkWithClient, WorkStatus } from '@/types/database';
 import { useWorks } from '@/hooks/useWorks';
 import { usePresupuestos } from '@/hooks/usePresupuestos';
@@ -22,7 +23,8 @@ import {
   Receipt,
   Wallet,
   Plus,
-  Trash2
+  Trash2,
+  RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { generatePresupuestoPdf, downloadPdf } from '@/lib/pdfGenerator';
@@ -52,6 +54,7 @@ interface WorkDetailViewProps {
 
 export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, onDeleteWork }: WorkDetailViewProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { updateAdvancePayment, updateWorkStatus, updateWork } = useWorks();
   const { presupuestos, updatePresupuesto } = usePresupuestos();
@@ -478,11 +481,23 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
                   value={advanceAmount}
                   onChange={(e) => setAdvanceAmount(e.target.value)}
                   placeholder="Importe"
-                  className="bg-background border-border"
+                  className="bg-background border-border flex-1"
                 />
                 <Button size="sm" onClick={handleAddAdvance} className="gap-1 whitespace-nowrap transition-transform active:scale-95">
                   <Plus className="w-4 h-4" />
-                  Anticipo
+                  Añadir
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => {
+                    // Force refresh by invalidating query
+                    queryClient.invalidateQueries({ queryKey: ['works'] });
+                    toast.success('Importes actualizados');
+                  }}
+                  className="gap-1 transition-transform active:scale-95"
+                >
+                  <RotateCcw className="w-4 h-4" />
                 </Button>
               </div>
             </div>
