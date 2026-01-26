@@ -18,7 +18,6 @@ import { ClientsList } from '@/components/ClientsList';
 import { MobileNav } from '@/components/MobileNav';
 import { NewClientModal } from '@/components/NewClientModal';
 import { DeleteWorkDialog } from '@/components/DeleteWorkDialog';
-import { GeminiAssistant } from '@/components/GeminiAssistant';
 import { HistorySection } from '@/components/HistorySection';
 import { ReminderNotification } from '@/components/ReminderNotification';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -55,9 +54,10 @@ export default function Index() {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+  // No auth required - app works without login
+  // if (!user) {
+  //   return <Navigate to="/auth" replace />;
+  // }
 
   const handleNewWorkClick = () => {
     if (!isEmpresaComplete) {
@@ -222,16 +222,13 @@ export default function Index() {
   // Show full-screen detail view when work is selected
   if (isDetailOpen && selectedWork) {
     return (
-      <>
-        <WorkDetailView
-          work={selectedWork}
-          onClose={handleCloseDetail}
-          onStatusChange={handleStatusChange}
-          onMarkAsPaid={handleMarkAsPaid}
-          onDeleteWork={handleDeleteWorkClick}
-        />
-        <GeminiAssistant />
-      </>
+      <WorkDetailView
+        work={selectedWork}
+        onClose={handleCloseDetail}
+        onStatusChange={handleStatusChange}
+        onMarkAsPaid={handleMarkAsPaid}
+        onDeleteWork={handleDeleteWorkClick}
+      />
     );
   }
 
@@ -364,9 +361,6 @@ export default function Index() {
         isDeleting={isDeleting}
       />
 
-      {/* Gemini Assistant - Floating Widget */}
-      <GeminiAssistant />
-      
       {/* Reminder Notifications */}
       <ReminderNotification />
     </div>

@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import MisDatosEmpresa from "./pages/MisDatosEmpresa";
 import SimpleBudgetEditor from "./pages/SimpleBudgetEditor";
 import Analytics from "./pages/Analytics";
+import CopilotoCRM from "./pages/CopilotoCRM";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/presupuesto/nuevo" element={<SimpleBudgetEditor />} />
             <Route path="/presupuesto/:id" element={<SimpleBudgetEditor />} />
             <Route path="/analiticas" element={<Analytics />} />
+            <Route path="/copiloto" element={<CopilotoCRM />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

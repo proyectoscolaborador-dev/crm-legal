@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Plus, Upload, LogOut, Menu, FileText, Building2, UserPlus } from 'lucide-react';
+import { Plus, Upload, LogOut, Menu, Building2, UserPlus, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
@@ -11,7 +11,7 @@ interface HeaderProps {
 }
 
 export function Header({ onNewWork, onImportCSV, onNewClient, onToggleMobileMenu }: HeaderProps) {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -37,6 +37,17 @@ export function Header({ onNewWork, onImportCSV, onNewClient, onToggleMobileMenu
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Copiloto AI Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/copiloto')}
+            className="gap-2 text-primary hover:text-primary hover:bg-primary/10"
+          >
+            <Bot className="w-4 h-4" />
+            <span className="hidden md:inline">Copiloto IA</span>
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"
@@ -46,8 +57,6 @@ export function Header({ onNewWork, onImportCSV, onNewClient, onToggleMobileMenu
             <Building2 className="w-4 h-4" />
             <span className="hidden md:inline">Mi Empresa</span>
           </Button>
-
-          {/* Removed standalone Presupuestos button - budgets are only created from within Works */}
 
           {onNewClient && (
             <Button
@@ -80,14 +89,16 @@ export function Header({ onNewWork, onImportCSV, onNewClient, onToggleMobileMenu
             <span className="hidden sm:inline">Nuevo</span>
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={signOut}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="w-4 h-4" />
-          </Button>
+          {user && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={signOut}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
     </header>
