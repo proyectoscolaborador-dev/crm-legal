@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, X, Send, Loader2, MessageCircle } from 'lucide-react';
+import { Sparkles, X, Send, Loader2, MessageCircle, Calendar, Mic, MicOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface Message {
   id: string;
@@ -12,10 +14,38 @@ interface Message {
 }
 
 export function GeminiAssistant() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  // Voice recognition
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Tu navegador no soporta reconocimiento de voz');
+      return;
+    }
+    
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+    };
+    
+    recognition.start();
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -27,18 +57,25 @@ export function GeminiAssistant() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageToSend = input.trim();
     setInput('');
     setIsLoading(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('gemini-assistant', {
         body: { 
-          message: input.trim(),
-          history: messages.slice(-10).map(m => ({ role: m.role, content: m.content }))
+          message: messageToSend,
+          history: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+          userId: user?.id
         }
       });
 
       if (error) throw error;
+
+      // Invalidate reminders if any were created
+      if (data?.remindersCreated) {
+        queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      }
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
@@ -102,15 +139,19 @@ export function GeminiAssistant() {
           <ScrollArea className="flex-1 p-4">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <MessageCircle className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                <Calendar className="w-12 h-12 text-muted-foreground/30 mb-4" />
                 <p className="text-muted-foreground text-sm">
                   ¡Hola! Soy tu asistente de Copiloto. Puedo ayudarte con:
                 </p>
                 <ul className="text-xs text-muted-foreground mt-2 space-y-1">
-                  <li>• Consultas sobre tus trabajos</li>
-                  <li>• Consejos de gestión</li>
-                  <li>• Ayuda con presupuestos</li>
+                  <li>📅 <strong>Crear recordatorios</strong> en la agenda</li>
+                  <li>📞 Apuntar visitas y llamadas</li>
+                  <li>💰 Recordar cobros y envíos</li>
+                  <li>💡 Consejos de gestión</li>
                 </ul>
+                <p className="text-xs text-primary mt-3">
+                  Prueba: "Recuérdame llamar a Juan mañana"
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -144,11 +185,21 @@ export function GeminiAssistant() {
           {/* Input */}
           <div className="p-4 border-t border-border bg-background/50">
             <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={startListening}
+                disabled={isLoading}
+                className={isListening ? 'bg-red-500/20 border-red-500 text-red-500' : ''}
+              >
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </Button>
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Escribe tu mensaje..."
+                placeholder={isListening ? "Escuchando..." : "Escribe o habla..."}
                 className="flex-1 bg-muted border-0 focus-visible:ring-1"
                 disabled={isLoading}
               />
@@ -156,7 +207,7 @@ export function GeminiAssistant() {
                 onClick={sendMessage}
                 size="icon"
                 disabled={!input.trim() || isLoading}
-                className="bg-primary hover:bg-primary/90"
+                className="bg-primary hover:bg-primary/90 transition-transform active:scale-95"
               >
                 <Send className="w-4 h-4" />
               </Button>

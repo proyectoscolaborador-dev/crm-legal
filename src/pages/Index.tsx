@@ -20,6 +20,7 @@ import { NewClientModal } from '@/components/NewClientModal';
 import { DeleteWorkDialog } from '@/components/DeleteWorkDialog';
 import { GeminiAssistant } from '@/components/GeminiAssistant';
 import { HistorySection } from '@/components/HistorySection';
+import { ReminderNotification } from '@/components/ReminderNotification';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigate } from 'react-router-dom';
 import { Loader2, Home, Calendar, Users, BarChart3, Archive } from 'lucide-react';
@@ -227,6 +228,7 @@ export default function Index() {
           onClose={handleCloseDetail}
           onStatusChange={handleStatusChange}
           onMarkAsPaid={handleMarkAsPaid}
+          onDeleteWork={handleDeleteWorkClick}
         />
         <GeminiAssistant />
       </>
@@ -364,6 +366,9 @@ export default function Index() {
 
       {/* Gemini Assistant - Floating Widget */}
       <GeminiAssistant />
+      
+      {/* Reminder Notifications */}
+      <ReminderNotification />
     </div>
   );
 }

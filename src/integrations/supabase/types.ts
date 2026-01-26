@@ -220,6 +220,56 @@ export type Database = {
           },
         ]
       }
+      reminders: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_completed: boolean
+          reminder_date: string
+          reminder_time: string | null
+          reminder_type: string
+          title: string
+          updated_at: string
+          user_id: string
+          work_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_completed?: boolean
+          reminder_date: string
+          reminder_time?: string | null
+          reminder_type?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          work_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_completed?: boolean
+          reminder_date?: string
+          reminder_time?: string | null
+          reminder_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          work_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "works"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       works: {
         Row: {
           advance_payments: number

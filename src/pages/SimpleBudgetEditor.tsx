@@ -578,7 +578,7 @@ export default function SimpleBudgetEditor() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="transition-transform active:scale-90">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-2">
@@ -657,6 +657,7 @@ export default function SimpleBudgetEditor() {
                 onIssueInvoice={handleIssueInvoice}
                 isLoading={isProcessingAction}
                 isReadOnly={isReadOnly}
+                hideDecisionButtons={formData.estado_presupuesto === 'aceptado' || formData.estado_presupuesto === 'en_proceso'}
               />
             </CardContent>
           </Card>
