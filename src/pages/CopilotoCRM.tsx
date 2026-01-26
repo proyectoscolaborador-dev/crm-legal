@@ -103,7 +103,23 @@ Responde en español, de forma clara y profesional. Ayuda al usuario con consult
         }
       });
 
-      if (error) throw error;
+      // Supabase devuelve errores HTTP aquí; además, nuestra función puede responder { error, details }
+      if (error) {
+        const maybeBody = (error as any)?.context?.body;
+        if (typeof maybeBody === 'string' && maybeBody.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(maybeBody);
+            throw new Error(parsed?.error || error.message);
+          } catch {
+            // fallback
+          }
+        }
+        throw new Error(error.message);
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
@@ -115,10 +131,11 @@ Responde en español, de forma clara y profesional. Ayuda al usuario con consult
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error: any) {
       console.error('Error calling Gemini:', error);
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: 'Lo siento, hubo un error al procesar tu solicitud. Verifica que la API key de Gemini esté configurada correctamente.',
+        content: `Lo siento, hubo un error al procesar tu solicitud: ${msg}`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);

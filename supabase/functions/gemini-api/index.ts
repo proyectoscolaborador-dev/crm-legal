@@ -31,36 +31,75 @@ serve(async (req) => {
       ? `${instrucciones_sistema}\n\nPregunta:\n${mensaje_usuario}`
       : mensaje_usuario;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: fullPrompt }]
+    // Los modelos cambian con frecuencia. Probamos aliases/ids conocidos y solo hacemos fallback en 404.
+    const modelCandidates = [
+      'gemini-flash-latest',
+      'gemini-2.0-flash',
+      'gemini-2.5-flash',
+    ];
+
+    let response: Response | null = null;
+    let lastErrorText = '';
+    for (const model of modelCandidates) {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: fullPrompt }]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 2048,
             }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 2048,
+          }),
+        }
+      );
+
+      if (response.ok) break;
+
+      lastErrorText = await response.text();
+      // 404 -> probamos el siguiente modelo; otros errores (429/401/403) se devuelven tal cual.
+      if (response.status !== 404) {
+        console.error('Gemini API error:', response.status, lastErrorText);
+        return new Response(
+          JSON.stringify({
+            error: `Gemini API error: ${response.status}`,
+            details: lastErrorText,
+          }),
+          {
+            status: response.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
-        }),
+        );
       }
-    );
+    }
+
+    if (!response) {
+      throw new Error('No se pudo contactar con Gemini');
+    }
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API error:', response.status, errorText);
+      // Si llegamos aquí, es que todos dieron 404.
+      console.error('Gemini API error:', response.status, lastErrorText);
       return new Response(
-        JSON.stringify({ error: `Gemini API error: ${response.status}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: `Gemini API error: ${response.status}`,
+          details: lastErrorText,
+        }),
+        {
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
       );
     }
 
