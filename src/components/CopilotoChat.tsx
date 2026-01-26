@@ -297,8 +297,8 @@ Responde BREVE. Solo 1-2 frases.`;
   };
 
   return (
-    <div className={`fixed bottom-0 left-0 right-0 z-40 md:bottom-4 md:left-4 md:right-4 ${className}`}>
-      <div className="mx-auto max-w-4xl">
+    <div className={`fixed bottom-16 left-0 right-0 z-40 md:bottom-4 md:left-4 md:right-4 ${className}`}>
+      <div className="mx-auto max-w-4xl px-2 md:px-0">
         {/* Chat Container */}
         <div className="bg-card/95 backdrop-blur-xl border border-border rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden">
           
