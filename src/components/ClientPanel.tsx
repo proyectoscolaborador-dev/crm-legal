@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PdfPreviewModal } from '@/components/PdfPreviewModal';
 import { DeleteWorkDialog } from '@/components/DeleteWorkDialog';
+import { ImageUpload } from '@/components/ImageUpload';
 import { 
   Phone, 
   Mail, 
@@ -27,7 +28,9 @@ import {
   Loader2,
   Eye,
   AlertCircle,
-  Trash2
+  Trash2,
+  Wallet,
+  Image as ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -43,12 +46,13 @@ interface ClientPanelProps {
 
 export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: ClientPanelProps) {
   const navigate = useNavigate();
-  const { markAsPaid, updateWorkStatus, deleteWork } = useWorks();
+  const { markAsPaid, updateWorkStatus, deleteWork, updateAdvancePayment, updateWork } = useWorks();
   const { presupuestos, isLoading: presupuestosLoading, updatePresupuesto, deletePresupuesto } = usePresupuestos();
   const { empresa, isEmpresaComplete } = useEmpresa();
   const [editedWork, setEditedWork] = useState<Partial<WorkWithClient>>({});
   const [isSendingPresupuesto, setIsSendingPresupuesto] = useState(false);
   const [isPreviewingPdf, setIsPreviewingPdf] = useState(false);
+  const [advanceAmount, setAdvanceAmount] = useState('');
   
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
@@ -70,6 +74,8 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
 
   const client = work.client;
   const linkedPresupuesto = presupuestos.find(p => p.work_id === work.id);
+  const isInvoiced = work.status === 'factura_enviada' || work.status === 'cobrado';
+  const pendingAmount = Number(work.amount) - Number(work.advance_payments || 0);
 
   const clientWorks = allWorks.filter(w => w.client_id === work.client_id);
   const ltv = clientWorks
@@ -91,6 +97,14 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
     const phone = client.phone.replace(/\D/g, '');
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+  };
+
+  const openEmail = () => {
+    if (!client?.email) {
+      toast.error('El cliente no tiene email');
+      return;
+    }
+    window.open(`mailto:${client.email}`, '_blank');
   };
 
   const handleEditPresupuesto = async () => {
@@ -256,6 +270,27 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
     markAsPaid.mutate(work.id);
   };
 
+  const handleAddAdvance = () => {
+    const amount = parseFloat(advanceAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Introduce un importe válido');
+      return;
+    }
+
+    const newTotal = Number(work.advance_payments || 0) + amount;
+    if (newTotal > Number(work.amount)) {
+      toast.error('El anticipo no puede superar el total');
+      return;
+    }
+
+    updateAdvancePayment.mutate({ id: work.id, advance_payments: newTotal });
+    setAdvanceAmount('');
+  };
+
+  const handleImagesChange = (images: string[]) => {
+    updateWork.mutate({ id: work.id, images });
+  };
+
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onClose}>
@@ -263,34 +298,40 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
           <SheetHeader className="pb-4 border-b border-border">
             <div className="flex items-center justify-between">
               <SheetTitle className="text-xl font-bold text-foreground">
-                {client?.name || 'Cliente'}
+                {client?.company || client?.name || 'Cliente'}
               </SheetTitle>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            {client?.company && (
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <Building2 className="w-4 h-4" />
-                {client.company}
-              </p>
+            {client?.company && client?.name && (
+              <p className="text-sm text-muted-foreground">{client.name}</p>
             )}
+            <p className="font-medium text-foreground mt-2">{work.title}</p>
           </SheetHeader>
 
           <Tabs defaultValue="contact" className="mt-4">
             <TabsList className="grid w-full grid-cols-4 bg-muted">
               <TabsTrigger value="contact">Contacto</TabsTrigger>
               <TabsTrigger value="finances">Finanzas</TabsTrigger>
-              <TabsTrigger value="presupuesto">Presupuesto</TabsTrigger>
+              <TabsTrigger value="presupuesto">
+                {isInvoiced ? 'Factura' : 'Presupuesto'}
+              </TabsTrigger>
               <TabsTrigger value="actions">Acciones</TabsTrigger>
             </TabsList>
 
             <TabsContent value="contact" className="space-y-4 mt-4">
+              {/* Contact Info */}
               <div className="space-y-3">
                 {client?.email && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                    <Mail className="w-4 h-4 text-primary" />
-                    <span className="text-sm text-foreground">{client.email}</span>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-4 h-4 text-primary" />
+                      <span className="text-sm text-foreground">{client.email}</span>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={openEmail}>
+                      Enviar
+                    </Button>
                   </div>
                 )}
                 
@@ -300,14 +341,17 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                       <Phone className="w-4 h-4 text-primary" />
                       <span className="text-sm text-foreground">{client.phone}</span>
                     </div>
-                    <Button size="sm" variant="outline" className="gap-2" onClick={() => openWhatsApp()}>
-                      <MessageSquare className="w-4 h-4" />
-                      WhatsApp
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="gap-2" onClick={() => openWhatsApp()}>
+                        <MessageSquare className="w-4 h-4" />
+                        WhatsApp
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
 
+              {/* LTV */}
               <div className="p-4 rounded-lg bg-secondary/10 border border-secondary/20">
                 <div className="flex items-center gap-2 mb-1">
                   <Star className="w-4 h-4 text-secondary" />
@@ -319,12 +363,15 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                 </p>
               </div>
 
-              {client?.notes && (
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground mb-1">Notas</p>
-                  <p className="text-sm text-foreground">{client.notes}</p>
-                </div>
-              )}
+              {/* Images */}
+              <div className="space-y-2">
+                <ImageUpload
+                  images={work.images || []}
+                  onImagesChange={handleImagesChange}
+                  maxImages={5}
+                  disabled={isInvoiced}
+                />
+              </div>
             </TabsContent>
 
             <TabsContent value="finances" className="space-y-4 mt-4">
@@ -339,7 +386,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs text-muted-foreground">Monto</Label>
+                    <Label className="text-xs text-muted-foreground">Total Presupuesto</Label>
                     <div className="flex items-center gap-2 mt-1">
                       <Euro className="w-4 h-4 text-primary" />
                       <Input
@@ -348,6 +395,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                         value={editedWork.amount ?? work.amount}
                         onChange={(e) => setEditedWork({ ...editedWork, amount: parseFloat(e.target.value) })}
                         className="bg-muted border-border h-12"
+                        disabled={isInvoiced}
                       />
                     </div>
                   </div>
@@ -359,9 +407,51 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                       onChange={(e) => setEditedWork({ ...editedWork, invoice_number: e.target.value })}
                       placeholder="FAC-001"
                       className="bg-muted border-border mt-1 h-12"
+                      disabled={isInvoiced}
                     />
                   </div>
                 </div>
+
+                {/* Advance Payments Section - Only for En Obra */}
+                {work.status === 'presupuesto_aceptado' && (
+                  <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="w-4 h-4 text-emerald-500" />
+                      <span className="font-medium text-emerald-500">Anticipos</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Total:</span>
+                        <span className="ml-2 font-medium">{formatCurrency(Number(work.amount))}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Anticipos:</span>
+                        <span className="ml-2 font-medium text-emerald-500">
+                          {formatCurrency(Number(work.advance_payments || 0))}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Pendiente:</span>
+                        <span className="ml-2 font-bold text-lg">{formatCurrency(pendingAmount)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        value={advanceAmount}
+                        onChange={(e) => setAdvanceAmount(e.target.value)}
+                        placeholder="Importe anticipo"
+                        className="bg-background border-border h-10"
+                      />
+                      <Button size="sm" onClick={handleAddAdvance} className="h-10">
+                        Añadir
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <Label className="text-xs text-muted-foreground">Fecha de Vencimiento</Label>
@@ -386,10 +476,10 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                   <div>
                     <p className="text-sm font-medium text-foreground">Estado de Pago</p>
                     <p className={`text-xs ${work.is_paid ? 'text-secondary' : 'text-warning'}`}>
-                      {work.is_paid ? 'Pagado' : 'Pendiente de pago'}
+                      {work.is_paid ? 'Cobrado' : 'Pendiente de cobro'}
                     </p>
                   </div>
-                  {!work.is_paid && (
+                  {!work.is_paid && work.status === 'factura_enviada' && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -397,7 +487,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                       onClick={handleMarkAsPaid}
                     >
                       <CheckCircle className="w-4 h-4" />
-                      Marcar Pagado
+                      Marcar Cobrado
                     </Button>
                   )}
                 </div>
@@ -408,14 +498,16 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
               {presupuestosLoading ? (
                 <div className="flex items-center justify-center p-8">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  <span className="ml-2 text-muted-foreground">Cargando presupuesto...</span>
+                  <span className="ml-2 text-muted-foreground">Cargando...</span>
                 </div>
               ) : (
                 <>
                   <div className="p-4 rounded-lg bg-muted/50 space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-foreground">Estado Presupuesto</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {isInvoiced ? 'Estado de la Factura' : 'Estado del Presupuesto'}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           {linkedPresupuesto 
                             ? `${linkedPresupuesto.estado_presupuesto.charAt(0).toUpperCase() + linkedPresupuesto.estado_presupuesto.slice(1)} - ${linkedPresupuesto.numero_presupuesto}`
@@ -429,6 +521,8 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                             ? 'bg-primary/20 text-primary' 
                             : linkedPresupuesto.estado_presupuesto === 'aceptado'
                             ? 'bg-secondary/20 text-secondary'
+                            : linkedPresupuesto.estado_presupuesto === 'facturado'
+                            ? 'bg-purple-500/20 text-purple-500'
                             : 'bg-muted text-muted-foreground'
                         }`}>
                           {linkedPresupuesto.estado_presupuesto}
@@ -457,26 +551,28 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                       <Alert className="bg-warning/10 border-warning/30">
                         <AlertCircle className="h-4 w-4 text-warning" />
                         <AlertDescription className="text-warning text-sm">
-                          No hay presupuesto vinculado a este trabajo. Pulsa "Editar Presupuesto" para crear uno.
+                          No hay presupuesto vinculado. Pulsa "Editar" para crear uno.
                         </AlertDescription>
                       </Alert>
                     )}
                   </div>
 
                   <div className="space-y-3">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start gap-3 h-14"
-                      onClick={handleEditPresupuesto}
-                    >
-                      <Edit className="w-5 h-5 text-primary" />
-                      <div className="text-left">
-                        <p className="font-medium">Editar Presupuesto</p>
-                        <p className="text-xs text-muted-foreground">
-                          {linkedPresupuesto ? 'Modificar partidas y detalles' : 'Crear nuevo presupuesto'}
-                        </p>
-                      </div>
-                    </Button>
+                    {!isInvoiced && (
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-3 h-14"
+                        onClick={handleEditPresupuesto}
+                      >
+                        <Edit className="w-5 h-5 text-primary" />
+                        <div className="text-left">
+                          <p className="font-medium">Editar Presupuesto</p>
+                          <p className="text-xs text-muted-foreground">
+                            {linkedPresupuesto ? 'Modificar partidas' : 'Crear nuevo'}
+                          </p>
+                        </div>
+                      </Button>
+                    )}
 
                     <Button
                       variant="outline"
@@ -490,26 +586,28 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                         <Eye className="w-5 h-5 text-secondary" />
                       )}
                       <div className="text-left">
-                        <p className="font-medium">Ver Borrador PDF</p>
-                        <p className="text-xs text-muted-foreground">Vista previa en modal interno</p>
+                        <p className="font-medium">Ver PDF</p>
+                        <p className="text-xs text-muted-foreground">Vista previa</p>
                       </div>
                     </Button>
 
-                    <Button
-                      className="w-full justify-start gap-3 h-14 bg-primary text-primary-foreground hover:bg-primary/90"
-                      onClick={handleSendPresupuesto}
-                      disabled={!linkedPresupuesto || isSendingPresupuesto}
-                    >
-                      {isSendingPresupuesto ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <Send className="w-5 h-5" />
-                      )}
-                      <div className="text-left">
-                        <p className="font-medium">Enviar Presupuesto</p>
-                        <p className="text-xs opacity-80">Genera PDF y envía al cliente</p>
-                      </div>
-                    </Button>
+                    {!isInvoiced && (
+                      <Button
+                        className="w-full justify-start gap-3 h-14 bg-primary text-primary-foreground hover:bg-primary/90"
+                        onClick={handleSendPresupuesto}
+                        disabled={!linkedPresupuesto || isSendingPresupuesto}
+                      >
+                        {isSendingPresupuesto ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Send className="w-5 h-5" />
+                        )}
+                        <div className="text-left">
+                          <p className="font-medium">Enviar Presupuesto</p>
+                          <p className="text-xs opacity-80">Genera PDF y envía</p>
+                        </div>
+                      </Button>
+                    )}
 
                     {linkedPresupuesto && (
                       <Button
@@ -520,7 +618,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                         <Download className="w-5 h-5 text-secondary" />
                         <div className="text-left">
                           <p className="font-medium">Descargar PDF</p>
-                          <p className="text-xs text-muted-foreground">Generar y guardar documento</p>
+                          <p className="text-xs text-muted-foreground">Guardar documento</p>
                         </div>
                       </Button>
                     )}
@@ -563,7 +661,7 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
                   <Trash2 className="w-5 h-5" />
                   <div className="text-left">
                     <p className="font-medium">Eliminar Trabajo</p>
-                    <p className="text-xs opacity-80">Borra trabajo y presupuesto asociado</p>
+                    <p className="text-xs opacity-80">Borra trabajo y presupuesto</p>
                   </div>
                 </Button>
               </div>

@@ -1,4 +1,4 @@
-import { LayoutGrid, Calendar, Users, Upload, History } from 'lucide-react';
+import { LayoutGrid, Calendar, Users, BarChart3, Home } from 'lucide-react';
 
 interface MobileNavProps {
   activeTab: string;
@@ -11,23 +11,13 @@ export function MobileNav({ activeTab, onTabChange, onImportCSV }: MobileNavProp
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:hidden">
       <div className="flex items-center justify-around p-2">
         <button
-          onClick={() => onTabChange('pipeline')}
+          onClick={() => onTabChange('inicio')}
           className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-            activeTab === 'pipeline' ? 'text-primary' : 'text-muted-foreground'
+            activeTab === 'inicio' ? 'text-primary' : 'text-muted-foreground'
           }`}
         >
-          <LayoutGrid className="w-5 h-5" />
-          <span className="text-xs">Pipeline</span>
-        </button>
-
-        <button
-          onClick={() => onTabChange('history')}
-          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-            activeTab === 'history' ? 'text-primary' : 'text-muted-foreground'
-          }`}
-        >
-          <History className="w-5 h-5" />
-          <span className="text-xs">Historial</span>
+          <Home className="w-5 h-5" />
+          <span className="text-xs">Inicio</span>
         </button>
 
         <button
@@ -51,11 +41,13 @@ export function MobileNav({ activeTab, onTabChange, onImportCSV }: MobileNavProp
         </button>
 
         <button
-          onClick={onImportCSV}
-          className="flex flex-col items-center gap-1 p-2 rounded-lg text-muted-foreground"
+          onClick={() => onTabChange('analytics')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+            activeTab === 'analytics' ? 'text-primary' : 'text-muted-foreground'
+          }`}
         >
-          <Upload className="w-5 h-5" />
-          <span className="text-xs">Importar</span>
+          <BarChart3 className="w-5 h-5" />
+          <span className="text-xs">Analíticas</span>
         </button>
       </div>
     </div>

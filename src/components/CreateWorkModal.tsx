@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Client, WorkStatus } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,8 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, User, Loader2, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Loader2, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ImageUpload } from '@/components/ImageUpload';
 
 // Extended work data including client fields for direct presupuesto sync
 export interface WorkWithClientData {
@@ -30,6 +31,7 @@ export interface WorkWithClientData {
   amount: number;
   status: WorkStatus;
   position: number;
+  images: string[];
   // Client data for direct presupuesto population (avoids lookup timing issues)
   clientData: {
     name: string;
@@ -60,12 +62,13 @@ export function CreateWorkModal({
   onCreateClient,
   isLoading = false,
 }: CreateWorkModalProps) {
-  const [step, setStep] = useState<'work' | 'new-client'>('work');
+  const [step, setStep] = useState<'images' | 'work' | 'new-client'>('images');
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [showAddressFields, setShowAddressFields] = useState(false);
+  const [projectImages, setProjectImages] = useState<string[]>([]);
   
   // Manual client entry (no preselection required)
   const [manualClientName, setManualClientName] = useState('');
@@ -89,12 +92,13 @@ export function CreateWorkModal({
   const [creatingClient, setCreatingClient] = useState(false);
 
   const resetForm = () => {
-    setStep('work');
+    setStep('images');
     setSelectedClientId('');
     setTitle('');
     setDescription('');
     setAmount('');
     setShowAddressFields(false);
+    setProjectImages([]);
     setManualClientName('');
     setManualClientEmail('');
     setManualClientPhone('');
@@ -209,6 +213,7 @@ export function CreateWorkModal({
       amount: parseFloat(amount) || 0,
       status: 'presupuesto_solicitado',
       position: 0,
+      images: projectImages,
       clientData: {
         name: manualClientName,
         email: manualClientEmail || null,
@@ -267,10 +272,41 @@ export function CreateWorkModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="bg-card border-border sm:max-w-md max-h-[90vh] p-0">
-        {step === 'work' ? (
+        {/* Step 1: Images */}
+        {step === 'images' && (
           <>
             <DialogHeader className="p-6 pb-0">
-              <DialogTitle className="text-foreground">Nuevo Trabajo</DialogTitle>
+              <DialogTitle className="text-foreground">Nuevo Trabajo - Imágenes</DialogTitle>
+            </DialogHeader>
+
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Sube imágenes del proyecto (opcional). Puedes añadirlas ahora o más tarde.
+              </p>
+              
+              <ImageUpload
+                images={projectImages}
+                onImagesChange={setProjectImages}
+                maxImages={5}
+              />
+            </div>
+
+            <DialogFooter className="p-6 pt-0">
+              <Button variant="outline" onClick={handleClose}>
+                Cancelar
+              </Button>
+              <Button onClick={() => setStep('work')}>
+                {projectImages.length > 0 ? 'Continuar' : 'Saltar'}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {/* Step 2: Work Details */}
+        {step === 'work' && (
+          <>
+            <DialogHeader className="p-6 pb-0">
+              <DialogTitle className="text-foreground">Nuevo Trabajo - Detalles</DialogTitle>
             </DialogHeader>
 
             <ScrollArea className="max-h-[60vh] px-6">
@@ -457,24 +493,23 @@ export function CreateWorkModal({
                   <Input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Ej: Diseño web corporativo"
+                    placeholder="Ej: Reforma integral cocina"
                     className="bg-muted border-border h-12"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Descripción (opcional)</Label>
+                  <Label>Descripción</Label>
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Detalles del trabajo..."
-                    className="bg-muted border-border resize-none"
-                    rows={3}
+                    className="bg-muted border-border min-h-[100px]"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Monto estimado (€)</Label>
+                  <Label>Importe estimado (€)</Label>
                   <Input
                     type="number"
                     inputMode="decimal"
@@ -484,21 +519,38 @@ export function CreateWorkModal({
                     className="bg-muted border-border h-12"
                   />
                 </div>
+
+                {/* Images preview */}
+                {projectImages.length > 0 && (
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {projectImages.length} imagen(es) adjuntadas
+                    </p>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setStep('images')}
+                    >
+                      Modificar imágenes
+                    </Button>
+                  </div>
+                )}
               </div>
             </ScrollArea>
 
-            <DialogFooter className="p-6 pt-4 border-t border-border">
-              <Button variant="ghost" onClick={handleClose}>
-                Cancelar
+            <DialogFooter className="p-6 pt-0 gap-2">
+              <Button variant="outline" onClick={() => setStep('images')}>
+                Atrás
               </Button>
-              <Button
-                onClick={handleCreateWork}
+              <Button 
+                onClick={handleCreateWork} 
                 disabled={!isFormValid || isLoading}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                className="gap-2"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     Creando...
                   </>
                 ) : (
@@ -507,13 +559,13 @@ export function CreateWorkModal({
               </Button>
             </DialogFooter>
           </>
-        ) : (
+        )}
+
+        {/* Step: New Client Form */}
+        {step === 'new-client' && (
           <>
             <DialogHeader className="p-6 pb-0">
-              <DialogTitle className="text-foreground flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Nuevo Cliente
-              </DialogTitle>
+              <DialogTitle className="text-foreground">Nuevo Cliente</DialogTitle>
             </DialogHeader>
 
             <ScrollArea className="max-h-[60vh] px-6">
@@ -554,9 +606,8 @@ export function CreateWorkModal({
                   <Input
                     value={newClientPhone}
                     onChange={(e) => setNewClientPhone(e.target.value)}
-                    placeholder="+34 600 000 000"
+                    placeholder="+34 600..."
                     className="bg-muted border-border h-12"
-                    inputMode="tel"
                   />
                 </div>
 
@@ -572,22 +623,22 @@ export function CreateWorkModal({
               </div>
             </ScrollArea>
 
-            <DialogFooter className="p-6 pt-4 border-t border-border">
-              <Button variant="ghost" onClick={() => setStep('work')}>
-                Volver
+            <DialogFooter className="p-6 pt-0 gap-2">
+              <Button variant="outline" onClick={() => setStep('work')}>
+                Cancelar
               </Button>
-              <Button
-                onClick={handleCreateClientStep}
+              <Button 
+                onClick={handleCreateClientStep} 
                 disabled={!newClientName || creatingClient}
-                className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                className="gap-2"
               >
                 {creatingClient ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     Creando...
                   </>
                 ) : (
-                  'Crear Cliente'
+                  'Crear y Usar'
                 )}
               </Button>
             </DialogFooter>

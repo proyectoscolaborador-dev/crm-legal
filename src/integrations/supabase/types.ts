@@ -222,6 +222,7 @@ export type Database = {
       }
       works: {
         Row: {
+          advance_payments: number
           amount: number
           budget_responded_at: string | null
           budget_sent_at: string | null
@@ -230,6 +231,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          images: Json
           invoice_number: string | null
           is_paid: boolean
           position: number
@@ -239,6 +241,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          advance_payments?: number
           amount?: number
           budget_responded_at?: string | null
           budget_sent_at?: string | null
@@ -247,6 +250,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          images?: Json
           invoice_number?: string | null
           is_paid?: boolean
           position?: number
@@ -256,6 +260,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          advance_payments?: number
           amount?: number
           budget_responded_at?: string | null
           budget_sent_at?: string | null
@@ -264,6 +269,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          images?: Json
           invoice_number?: string | null
           is_paid?: boolean
           position?: number
@@ -294,8 +300,10 @@ export type Database = {
         | "presupuesto_solicitado"
         | "presupuesto_enviado"
         | "presupuesto_aceptado"
+        | "pendiente_facturar"
         | "factura_enviada"
         | "trabajo_terminado"
+        | "cobrado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -427,8 +435,10 @@ export const Constants = {
         "presupuesto_solicitado",
         "presupuesto_enviado",
         "presupuesto_aceptado",
+        "pendiente_facturar",
         "factura_enviada",
         "trabajo_terminado",
+        "cobrado",
       ],
     },
   },
