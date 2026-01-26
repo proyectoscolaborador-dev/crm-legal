@@ -234,7 +234,7 @@ export default function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-background pb-36 md:pb-24">
       <Header
         onNewWork={handleNewWorkClick}
         onImportCSV={() => setIsImportOpen(true)}
