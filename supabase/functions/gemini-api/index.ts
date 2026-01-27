@@ -21,92 +21,58 @@ serve(async (req) => {
       );
     }
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Combine system instructions with user message
-    const fullPrompt = instrucciones_sistema 
-      ? `${instrucciones_sistema}\n\nPregunta:\n${mensaje_usuario}`
-      : mensaje_usuario;
-
-    // Los modelos cambian con frecuencia. Probamos aliases/ids conocidos y solo hacemos fallback en 404.
-    const modelCandidates = [
-      'gemini-flash-latest',
-      'gemini-2.0-flash',
-      'gemini-2.5-flash',
-    ];
-
-    let response: Response | null = null;
-    let lastErrorText = '';
-    for (const model of modelCandidates) {
-      response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: fullPrompt }]
-              }
-            ],
-            generationConfig: {
-              temperature: 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 2048,
-            }
-          }),
-        }
-      );
-
-      if (response.ok) break;
-
-      lastErrorText = await response.text();
-      // 404 -> probamos el siguiente modelo; otros errores (429/401/403) se devuelven tal cual.
-      if (response.status !== 404) {
-        console.error('Gemini API error:', response.status, lastErrorText);
-        return new Response(
-          JSON.stringify({
-            error: `Gemini API error: ${response.status}`,
-            details: lastErrorText,
-          }),
-          {
-            status: response.status,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
+    // Build messages array for OpenAI-compatible API
+    const messages = [];
+    if (instrucciones_sistema) {
+      messages.push({ role: 'system', content: instrucciones_sistema });
     }
+    messages.push({ role: 'user', content: mensaje_usuario });
 
-    if (!response) {
-      throw new Error('No se pudo contactar con Gemini');
-    }
+    console.log('Calling Lovable AI Gateway...');
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-3-flash-preview',
+        messages,
+        temperature: 0.7,
+      }),
+    });
 
     if (!response.ok) {
-      // Si llegamos aquí, es que todos dieron 404.
-      console.error('Gemini API error:', response.status, lastErrorText);
+      const errorText = await response.text();
+      console.error('Lovable AI Gateway error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Límite de solicitudes excedido, intenta de nuevo más tarde.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'Se requiere pago, añade créditos a tu workspace.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({
-          error: `Gemini API error: ${response.status}`,
-          details: lastErrorText,
-        }),
-        {
-          status: response.status,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
+        JSON.stringify({ error: `AI API error: ${response.status}`, details: errorText }),
+        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await response.json();
-    
-    // Extract text from Gemini response
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No se pudo generar una respuesta.';
+    const text = data.choices?.[0]?.message?.content || 'No se pudo generar una respuesta.';
 
     return new Response(
       JSON.stringify({ response: text }),
