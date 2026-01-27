@@ -246,7 +246,7 @@ export function ChatBar() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border shadow-lg">
+    <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-40 bg-card border-t border-border shadow-lg">
       {/* Expanded Chat Area */}
       {isExpanded && (
         <div className="h-[300px] border-b border-border">
