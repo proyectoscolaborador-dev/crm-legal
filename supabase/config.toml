@@ -1,1 +1,10 @@
 project_id = "otrwnhqnqaizizeqeemu"
+
+[functions.gemini-api]
+verify_jwt = false
+
+[functions.generate-presupuesto-pdf]
+verify_jwt = false
+
+[functions.assistant]
+verify_jwt = false
