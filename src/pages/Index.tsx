@@ -21,7 +21,7 @@ import { NewClientModal } from '@/components/NewClientModal';
 import { DeleteWorkDialog } from '@/components/DeleteWorkDialog';
 import { HistorySection } from '@/components/HistorySection';
 import { ReminderNotification } from '@/components/ReminderNotification';
-import { CopilotoChat } from '@/components/CopilotoChat';
+import { CustomAssistant } from '@/components/CustomAssistant';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigate } from 'react-router-dom';
 import { Loader2, Home, Calendar, Users, BarChart3, Archive } from 'lucide-react';
@@ -387,8 +387,8 @@ export default function Index() {
       {/* Reminder Notifications */}
       <ReminderNotification />
 
-      {/* Copiloto Chat */}
-      <CopilotoChat />
+      {/* Custom Assistant - Mistral AI */}
+      <CustomAssistant />
     </div>
   );
 }
