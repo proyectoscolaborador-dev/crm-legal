@@ -318,6 +318,32 @@ serve(async (req) => {
   }
 
   try {
+    // Validate authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - missing or invalid authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const authenticatedUserId = user.id;
+
     const { mode, messages, context } = await req.json() as AssistantRequest;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -342,26 +368,15 @@ serve(async (req) => {
 
     let executedActions: { action: Action; success: boolean; error?: string }[] = [];
 
-    // Execute actions if in operate mode
+    // Execute actions if in operate mode - use authenticated user ID for security
     if (mode === 'operate' && aiResponse.actions && aiResponse.actions.length > 0) {
-      const userId = context?.currentUser?.id;
-      if (!userId) {
-        return new Response(
-          JSON.stringify({ 
-            reply: aiResponse.reply, 
-            executedActions: [],
-            error: 'User ID required for operate mode' 
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
+      // Use the authenticated user ID from JWT claims, not from context (which could be spoofed)
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       
       executedActions = await executeActions(
         aiResponse.actions,
-        userId,
+        authenticatedUserId, // Use authenticated user ID instead of context
         supabaseUrl,
         supabaseKey
       );

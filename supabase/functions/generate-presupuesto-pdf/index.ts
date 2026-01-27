@@ -373,18 +373,25 @@ serve(async (req) => {
       throw uploadError;
     }
 
-    const { data: { publicUrl } } = supabase.storage
+    // Generate signed URL for secure access (1 hour expiry)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from('presupuestos-pdf')
-      .getPublicUrl(fileName);
+      .createSignedUrl(fileName, 3600); // 1 hour expiry
 
-    // Update presupuesto with PDF URL
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      throw new Error('Failed to generate signed URL');
+    }
+
+    const pdfUrl = signedUrlData.signedUrl;
+
+    // Update presupuesto with signed PDF URL
     await supabase
       .from('presupuestos')
-      .update({ pdf_url: publicUrl })
+      .update({ pdf_url: pdfUrl })
       .eq('id', presupuestoId);
 
     return new Response(
-      JSON.stringify({ pdfUrl: publicUrl }),
+      JSON.stringify({ pdfUrl }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
