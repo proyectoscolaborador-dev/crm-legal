@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { useWorks } from '@/hooks/useWorks';
@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 
 export default function Index() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const { clients, createClient, updateClient, deleteClient } = useClients();
   const { works, createWork, updateWork, updateWorkStatus, deleteWork, markAsPaid, isLoading: worksLoading } = useWorks();
@@ -48,6 +49,20 @@ export default function Index() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workToDelete, setWorkToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Handle navigation state to open a specific work
+  useEffect(() => {
+    const state = location.state as { openWorkId?: string } | null;
+    if (state?.openWorkId && works.length > 0) {
+      const workToOpen = works.find(w => w.id === state.openWorkId);
+      if (workToOpen) {
+        setSelectedWork(workToOpen);
+        setIsDetailOpen(true);
+        // Clear the state to prevent reopening on subsequent renders
+        navigate('/', { replace: true, state: {} });
+      }
+    }
+  }, [location.state, works, navigate]);
 
   if (authLoading || empresaLoading) {
     return (
