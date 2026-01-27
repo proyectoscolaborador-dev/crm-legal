@@ -275,6 +275,9 @@ async function executeActions(
   return results;
 }
 
+// Default user ID for single-session mode (no login required)
+const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -298,65 +301,44 @@ serve(async (req) => {
       );
     }
 
-    // For OPERATE mode, we MUST validate authentication since it modifies data
-    let authenticatedUserId: string | null = null;
+    // Use authenticated user if available, otherwise use default session user
+    let userId: string = DEFAULT_USER_ID;
     
-    if (mode === 'operate') {
-      const authHeader = req.headers.get('Authorization');
-      console.log('Auth header present:', !!authHeader);
-      
-      if (!authHeader?.startsWith('Bearer ')) {
-        console.log('Missing or invalid auth header format');
-        return new Response(
-          JSON.stringify({ error: 'Authentication required for operate mode' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.replace('Bearer ', '');
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-      
-      console.log('Supabase URL:', supabaseUrl ? 'present' : 'missing');
-      console.log('Supabase Anon Key:', supabaseAnonKey ? 'present' : 'missing');
       
       const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } }
       });
 
-      // Use getUser with the token directly
-      const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
-      
-      console.log('getUser result - user:', !!user, 'error:', userError?.message);
-      
-      if (userError || !user) {
-        console.log('Auth validation failed:', userError?.message || 'No user returned');
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized - invalid token for operate mode', details: userError?.message }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      const { data: { user } } = await supabaseAuth.auth.getUser(token);
+      if (user) {
+        userId = user.id;
+        console.log('Authenticated user ID:', userId);
       }
-      
-      authenticatedUserId = user.id;
-      console.log('Authenticated user ID:', authenticatedUserId);
     }
+    
+    console.log('Using user ID:', userId, 'Mode:', mode);
 
     // Build system prompt
     const systemPrompt = buildSystemPrompt(mode, context || {});
 
-    // Call AI (Mistral or Lovable AI Gateway)
+    // Call AI (Mistral)
     const aiResponse = await callAI(messages, systemPrompt);
 
     let executedActions: { action: Action; success: boolean; error?: string }[] = [];
 
-    // Execute actions if in operate mode - use authenticated user ID for security
-    if (mode === 'operate' && aiResponse.actions && aiResponse.actions.length > 0 && authenticatedUserId) {
+    // Execute actions if in operate mode - use authenticated or default user ID
+    if (mode === 'operate' && aiResponse.actions && aiResponse.actions.length > 0) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       
       executedActions = await executeActions(
         aiResponse.actions,
-        authenticatedUserId,
+        userId,
         supabaseUrl,
         supabaseKey
       );

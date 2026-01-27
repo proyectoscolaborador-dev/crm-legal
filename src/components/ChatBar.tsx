@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { 
   Bot, 
   User, 
@@ -15,10 +13,10 @@ import {
   Eye,
   CheckCircle2,
   XCircle,
-  Trash2
+  Trash2,
+  Sparkles
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { useWorks } from '@/hooks/useWorks';
 import { useReminders } from '@/hooks/useReminders';
@@ -52,7 +50,6 @@ type AssistantMode = 'read' | 'operate';
 const CHAT_STORAGE_KEY = 'chatbar-messages';
 
 export function ChatBar() {
-  const { user } = useAuth();
   const { clients } = useClients();
   const { works } = useWorks();
   const { reminders } = useReminders();
@@ -79,15 +76,10 @@ export function ChatBar() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [mode, setMode] = useState<AssistantMode>('read');
+  const [mode, setMode] = useState<AssistantMode>('operate');
   
-  useEffect(() => {
-    if (!user && mode === 'operate') {
-      setMode('read');
-    }
-  }, [user, mode]);
-  
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -98,21 +90,26 @@ export function ChatBar() {
     }
   }, [messages]);
 
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, isLoading]);
 
   useEffect(() => {
     if (isExpanded) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+      setTimeout(() => {
+        inputRef.current?.focus();
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
     }
   }, [isExpanded]);
 
   const buildContext = useCallback(() => {
     return {
-      currentUser: user ? { id: user.id, email: user.email } : undefined,
       currentRoute: location.pathname,
       lastRecords: {
         clientes: clients.slice(0, 10).map(c => ({
@@ -146,7 +143,7 @@ export function ChatBar() {
         }))
       }
     };
-  }, [user, location.pathname, clients, reminders, presupuestos, works]);
+  }, [location.pathname, clients, reminders, presupuestos, works]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -170,11 +167,9 @@ export function ChatBar() {
         content: m.content
       }));
 
-      const effectiveMode = user ? mode : 'read';
-
       const { data, error } = await supabase.functions.invoke('assistant', {
         body: {
-          mode: effectiveMode,
+          mode,
           messages: allMessages,
           context
         }
@@ -246,59 +241,78 @@ export function ChatBar() {
   };
 
   return (
-    <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-40 bg-card border-t border-border shadow-lg">
+    <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-card via-card to-card/95 border-t-2 border-primary/20 shadow-2xl">
       {/* Expanded Chat Area */}
       {isExpanded && (
-        <div className="h-[300px] border-b border-border">
-          <ScrollArea className="h-full p-3" ref={scrollRef}>
-            <div className="space-y-3 max-w-4xl mx-auto">
+        <div className="h-[350px] border-b border-primary/10 bg-gradient-to-b from-background/50 to-background">
+          <div 
+            ref={scrollContainerRef}
+            className="h-full overflow-y-auto p-4 scroll-smooth"
+          >
+            <div className="space-y-4 max-w-3xl mx-auto">
               {messages.length === 0 && (
-                <div className="text-center py-8">
-                  <Bot className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    ¡Hola! Soy tu Copiloto con Mistral AI.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-4 animate-pulse">
+                    <Sparkles className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    ¡Hola! Soy tu Copiloto IA
+                  </h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
                     {mode === 'read' 
-                      ? 'Pregúntame sobre tu CRM' 
-                      : 'Puedo crear, editar y eliminar registros'}
+                      ? 'Pregúntame sobre tus clientes, presupuestos o trabajos' 
+                      : 'Puedo crear clientes, citas, presupuestos y más. ¡Solo pídelo!'}
                   </p>
+                  <div className="flex flex-wrap gap-2 justify-center mt-4">
+                    <button 
+                      onClick={() => setInput('¿Cuántos clientes tengo?')}
+                      className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full transition-colors"
+                    >
+                      ¿Cuántos clientes tengo?
+                    </button>
+                    <button 
+                      onClick={() => setInput('Crea un recordatorio para mañana')}
+                      className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full transition-colors"
+                    >
+                      Crear recordatorio
+                    </button>
+                  </div>
                 </div>
               )}
 
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
                 >
                   <div
-                    className={`flex gap-2 max-w-[80%] ${
+                    className={`flex gap-3 max-w-[85%] ${
                       message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                     }`}
                   >
                     <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${
                         message.role === 'user'
                           ? 'bg-foreground text-background'
-                          : 'bg-primary/20 text-primary'
+                          : 'bg-gradient-to-br from-primary to-secondary text-primary-foreground'
                       }`}
                     >
                       {message.role === 'user' ? (
-                        <User className="w-3 h-3" />
+                        <User className="w-4 h-4" />
                       ) : (
-                        <Bot className="w-3 h-3" />
+                        <Bot className="w-4 h-4" />
                       )}
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <div
-                        className={`rounded-xl px-3 py-2 text-sm ${
+                        className={`rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
                           message.role === 'user'
-                            ? 'bg-foreground text-background rounded-tr-sm'
-                            : 'bg-muted text-foreground rounded-tl-sm'
+                            ? 'bg-foreground text-background rounded-tr-md'
+                            : 'bg-card border border-border text-foreground rounded-tl-md'
                         }`}
                       >
                         {message.role === 'assistant' ? (
-                          <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
                             <ReactMarkdown>{typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}</ReactMarkdown>
                           </div>
                         ) : (
@@ -307,14 +321,14 @@ export function ChatBar() {
                       </div>
                       
                       {message.actions && message.actions.length > 0 && (
-                        <div className="space-y-1">
+                        <div className="flex flex-wrap gap-1.5">
                           {message.actions.map((action, idx) => (
                             <div
                               key={idx}
-                              className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded ${
+                              className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
                                 action.success 
-                                  ? 'bg-green-500/10 text-green-600' 
-                                  : 'bg-red-500/10 text-red-600'
+                                  ? 'bg-green-500/15 text-green-600 dark:text-green-400' 
+                                  : 'bg-red-500/15 text-red-600 dark:text-red-400'
                               }`}
                             >
                               {action.success ? (
@@ -335,59 +349,60 @@ export function ChatBar() {
               ))}
 
               {isLoading && (
-                <div className="flex justify-start">
-                  <div className="flex gap-2 max-w-[80%]">
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <Bot className="w-3 h-3 text-primary" />
+                <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="flex gap-3 max-w-[85%]">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Bot className="w-4 h-4 text-primary-foreground" />
                     </div>
-                    <div className="rounded-xl rounded-tl-sm px-3 py-2 bg-muted">
+                    <div className="rounded-2xl rounded-tl-md px-4 py-3 bg-card border border-border shadow-sm">
                       <div className="flex items-center gap-2">
-                        <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                        <span className="text-xs text-muted-foreground">Pensando...</span>
+                        <div className="flex gap-1">
+                          <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                        <span className="text-xs text-muted-foreground ml-1">Pensando...</span>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
+              
+              {/* Scroll anchor */}
+              <div ref={messagesEndRef} />
             </div>
-          </ScrollArea>
+          </div>
         </div>
       )}
 
       {/* Input Bar - Always visible */}
-      <div className="p-3 bg-card">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
+      <div className="p-3 bg-card/80 backdrop-blur-sm">
+        <div className="max-w-3xl mx-auto flex items-center gap-2">
           {/* Expand/Collapse Button */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex-shrink-0"
+            className="flex-shrink-0 h-10 w-10 rounded-xl hover:bg-primary/10"
           >
-            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
           </Button>
 
-          {/* Bot Icon */}
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-            <Bot className="w-4 h-4 text-primary" />
+          {/* Bot Icon with gradient */}
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 shadow-md">
+            <Sparkles className="w-5 h-5 text-primary-foreground" />
           </div>
 
           {/* Mode Toggle */}
-          {user ? (
-            <div className="flex items-center gap-1.5 bg-muted rounded-full px-2 py-1 flex-shrink-0">
-              <Eye className={`w-3.5 h-3.5 ${mode === 'read' ? 'text-primary' : 'text-muted-foreground'}`} />
-              <Switch
-                checked={mode === 'operate'}
-                onCheckedChange={(checked) => setMode(checked ? 'operate' : 'read')}
-                className="scale-75"
-              />
-              <Zap className={`w-3.5 h-3.5 ${mode === 'operate' ? 'text-primary' : 'text-muted-foreground'}`} />
-            </div>
-          ) : (
-            <Badge variant="outline" className="text-xs flex-shrink-0">
-              Solo lectura
-            </Badge>
-          )}
+          <div className="flex items-center gap-1.5 bg-muted/80 rounded-xl px-3 py-2 flex-shrink-0">
+            <Eye className={`w-4 h-4 transition-colors ${mode === 'read' ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Switch
+              checked={mode === 'operate'}
+              onCheckedChange={(checked) => setMode(checked ? 'operate' : 'read')}
+              className="scale-90"
+            />
+            <Zap className={`w-4 h-4 transition-colors ${mode === 'operate' ? 'text-primary' : 'text-muted-foreground'}`} />
+          </div>
 
           {/* Input */}
           <Input
@@ -395,8 +410,8 @@ export function ChatBar() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={mode === 'read' ? 'Pregunta a tu Copiloto Mistral AI...' : 'Pide una acción...'}
-            className="flex-1 h-10"
+            placeholder={mode === 'read' ? 'Pregunta sobre tu CRM...' : 'Pide una acción: crear cliente, recordatorio...'}
+            className="flex-1 h-10 rounded-xl border-primary/20 focus:border-primary/40 bg-background/50"
             disabled={isLoading}
           />
 
@@ -405,7 +420,7 @@ export function ChatBar() {
             onClick={sendMessage}
             disabled={!input.trim() || isLoading}
             size="icon"
-            className="h-10 w-10 flex-shrink-0"
+            className="h-10 w-10 flex-shrink-0 rounded-xl bg-gradient-to-r from-primary to-secondary hover:opacity-90 shadow-md"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -420,7 +435,7 @@ export function ChatBar() {
               variant="ghost"
               size="icon"
               onClick={clearHistory}
-              className="h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-foreground"
+              className="h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-destructive rounded-xl"
             >
               <Trash2 className="w-4 h-4" />
             </Button>
