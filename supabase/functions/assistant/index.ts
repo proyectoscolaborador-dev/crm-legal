@@ -149,77 +149,43 @@ Ejemplo de respuesta con acción:
 }`;
 }
 
-// Call AI API (uses Lovable AI Gateway with Mistral-compatible interface or direct Mistral)
+// Call Mistral API only (no fallback to Lovable AI)
 async function callAI(messages: Message[], systemPrompt: string): Promise<MistralResponse> {
-  // Try Mistral first, fallback to Lovable AI Gateway
   const MISTRAL_API_KEY = Deno.env.get('MISTRAL_API_KEY');
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  
+  if (!MISTRAL_API_KEY) {
+    throw new Error('MISTRAL_API_KEY not configured');
+  }
   
   const aiMessages = [
     { role: 'system', content: systemPrompt },
     ...messages.map(m => ({ role: m.role, content: m.content }))
   ];
 
-  let response: Response;
-  let usingLovable = false;
+  console.log('Calling Mistral API...');
+  const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${MISTRAL_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'mistral-small-latest',
+      messages: aiMessages,
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+      max_tokens: 2048,
+    }),
+  });
 
-  // Try Mistral API first if key is available
-  if (MISTRAL_API_KEY) {
-    console.log('Trying Mistral API...');
-    response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${MISTRAL_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'mistral-small-latest',
-        messages: aiMessages,
-        response_format: { type: 'json_object' },
-        temperature: 0.7,
-        max_tokens: 2048,
-      }),
-    });
-
-    if (response.ok) {
-      console.log('Mistral API responded successfully');
-    } else {
-      console.log('Mistral API failed, falling back to Lovable AI Gateway');
-      usingLovable = true;
-    }
-  } else {
-    usingLovable = true;
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Mistral API error:', response.status, errorText);
+    throw new Error(`Mistral API error: ${response.status} - ${errorText}`);
   }
 
-  // Fallback to Lovable AI Gateway
-  if (usingLovable) {
-    if (!LOVABLE_API_KEY) {
-      throw new Error('No AI API key configured (MISTRAL_API_KEY or LOVABLE_API_KEY)');
-    }
-    
-    console.log('Using Lovable AI Gateway...');
-    // Lovable AI Gateway doesn't support response_format, so we don't include it
-    response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: aiMessages,
-        temperature: 0.7,
-      }),
-    });
-  }
-
-  if (!response!.ok) {
-    const errorText = await response!.text();
-    console.error('AI API error:', response!.status, errorText);
-    throw new Error(`AI API error: ${response!.status} - ${errorText}`);
-  }
-
-  const data = await response!.json();
+  console.log('Mistral API responded successfully');
+  const data = await response.json();
   console.log('AI response:', JSON.stringify(data, null, 2));
 
   const content = data.choices?.[0]?.message?.content;
