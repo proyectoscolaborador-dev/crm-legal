@@ -365,7 +365,7 @@ export function CustomAssistant() {
                   >
                     {message.role === 'assistant' ? (
                       <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                        <ReactMarkdown>{typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}</ReactMarkdown>
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap">{message.content}</p>
