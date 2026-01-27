@@ -11,6 +11,7 @@ import MisDatosEmpresa from "./pages/MisDatosEmpresa";
 import SimpleBudgetEditor from "./pages/SimpleBudgetEditor";
 import Analytics from "./pages/Analytics";
 import CopilotoCRM from "./pages/CopilotoCRM";
+import AlertsPage from "./pages/AlertsPage";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/presupuesto/:id" element={<SimpleBudgetEditor />} />
             <Route path="/analiticas" element={<Analytics />} />
             <Route path="/copiloto" element={<CopilotoCRM />} />
+            <Route path="/alertas" element={<AlertsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

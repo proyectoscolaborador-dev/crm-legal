@@ -21,7 +21,8 @@ const STAGE_ICONS: Record<WorkStatus, React.ReactNode> = {
 };
 
 export function StageSection({ status, works, onWorkClick, onDeleteClick }: StageSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(works.length > 0);
+  // Always start collapsed
+  const [isExpanded, setIsExpanded] = useState(false);
   const config = STAGE_CONFIG[status];
   const totalAmount = works.reduce((sum, w) => sum + Number(w.amount), 0);
 
