@@ -21,7 +21,7 @@ import { NewClientModal } from '@/components/NewClientModal';
 import { DeleteWorkDialog } from '@/components/DeleteWorkDialog';
 import { HistorySection } from '@/components/HistorySection';
 import { ReminderNotification } from '@/components/ReminderNotification';
-import { CustomAssistant } from '@/components/CustomAssistant';
+import { ChatBar } from '@/components/ChatBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Navigate } from 'react-router-dom';
 import { Loader2, Home, Calendar, Users, BarChart3, Archive } from 'lucide-react';
@@ -251,7 +251,7 @@ export default function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-36 md:pb-24">
+    <div className="min-h-screen bg-background pb-44 md:pb-28">
       <Header
         onNewWork={handleNewWorkClick}
         onImportCSV={() => setIsImportOpen(true)}
@@ -387,8 +387,8 @@ export default function Index() {
       {/* Reminder Notifications */}
       <ReminderNotification />
 
-      {/* Custom Assistant - Mistral AI */}
-      <CustomAssistant />
+      {/* ChatBar - Mistral AI - Barra fija inferior */}
+      <ChatBar />
     </div>
   );
 }

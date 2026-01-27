@@ -320,8 +320,8 @@ ${agendaProxima.length === 0 ? 'Sin eventos próximos' : agendaProxima.slice(0, 
     return contexto;
   }, [calcularFacturasVencidas, calcularFacturasPendientesCobro, calcularDeudaPorCliente, clientesDeudaAlta, presupuestosPendientesEnvio, presupuestosSinRespuesta, alertasAgenda, calcularAlertas]);
 
-  // Main function: LLAMAR_GEMINI_ASISTENTE
-  const llamarGeminiAsistente = useCallback(async (
+  // Main function: LLAMAR_MISTRAL_ASISTENTE
+  const llamarMistralAsistente = useCallback(async (
     preguntaUsuario: string,
     contextData: CRMContextData
   ): Promise<string> => {
@@ -362,7 +362,7 @@ ${agendaProxima.length === 0 ? 'Sin eventos próximos' : agendaProxima.slice(0, 
   }, [construirContextoCRM]);
 
   return {
-    llamarGeminiAsistente,
+    llamarMistralAsistente,
     isLoading,
     respuesta,
     error,

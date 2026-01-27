@@ -171,7 +171,7 @@ Responde en español, de forma clara y profesional. Ayuda al usuario con consult
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Bot className="w-4 h-4" />
-            <span>Gemini 1.5 Flash</span>
+            <span>Mistral AI</span>
           </div>
         </div>
       </header>

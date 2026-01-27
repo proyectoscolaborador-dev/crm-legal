@@ -154,7 +154,7 @@ export default function Analytics() {
   const { clients } = useClients();
   const { presupuestos, isLoading: presupuestosLoading } = usePresupuestos();
   const { reminders } = useReminders();
-  const { llamarGeminiAsistente, isLoading: isAsistenteLoading } = useAsistenteInteligente();
+  const { llamarMistralAsistente, isLoading: isAsistenteLoading } = useAsistenteInteligente();
   
   // State
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -560,7 +560,7 @@ INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
 - Sé conciso pero completo.
 `;
 
-      const respuesta = await llamarGeminiAsistente(preguntaConContexto, contextData);
+      const respuesta = await llamarMistralAsistente(preguntaConContexto, contextData);
       const cleanedResponse = processAiResponse(respuesta);
       
       setChatMessages(prev => [...prev, { role: 'assistant', content: cleanedResponse }]);
