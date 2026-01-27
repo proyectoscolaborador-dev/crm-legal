@@ -198,6 +198,7 @@ async function callAI(messages: Message[], systemPrompt: string): Promise<Mistra
     }
     
     console.log('Using Lovable AI Gateway...');
+    // Lovable AI Gateway doesn't support response_format, so we don't include it
     response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -208,7 +209,6 @@ async function callAI(messages: Message[], systemPrompt: string): Promise<Mistra
         model: 'google/gemini-3-flash-preview',
         messages: aiMessages,
         temperature: 0.7,
-        max_tokens: 2048,
       }),
     });
   }
@@ -242,14 +242,12 @@ async function callAI(messages: Message[], systemPrompt: string): Promise<Mistra
     }
     cleanContent = cleanContent.trim();
     
-    return JSON.parse(cleanContent) as MistralResponse;
-  } catch {
-    // If JSON parse fails, return the content as reply
-    return { reply: content, actions: [] };
-  }
-
-  try {
-    return JSON.parse(content) as MistralResponse;
+    const parsed = JSON.parse(cleanContent) as MistralResponse;
+    // Ensure reply is always a string
+    if (typeof parsed.reply !== 'string') {
+      parsed.reply = JSON.stringify(parsed.reply);
+    }
+    return parsed;
   } catch {
     // If JSON parse fails, return the content as reply
     return { reply: content, actions: [] };
