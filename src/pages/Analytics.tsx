@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useWorks } from '@/hooks/useWorks';
 import { useClients } from '@/hooks/useClients';
 import { usePresupuestos } from '@/hooks/usePresupuestos';
+import { useReminders } from '@/hooks/useReminders';
+import { useAsistenteInteligente } from '@/hooks/useAsistenteInteligente';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +69,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, subDays, isAfter, isBefore, parseISO, addDays, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
 import {
   BarChart,
   Bar,
@@ -150,6 +153,8 @@ export default function Analytics() {
   const { works, isLoading: worksLoading } = useWorks();
   const { clients } = useClients();
   const { presupuestos, isLoading: presupuestosLoading } = usePresupuestos();
+  const { reminders } = useReminders();
+  const { llamarGeminiAsistente, isLoading: isAsistenteLoading } = useAsistenteInteligente();
   
   // State
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -478,38 +483,7 @@ export default function Analytics() {
     }).format(value);
   };
 
-  // AI Assistant functions
-  const buildContext = () => {
-    return `
-DATOS ACTUALES (con filtros aplicados):
-- Total trabajos: ${filteredWorks.length}
-- Presupuestos pendientes: ${stats.presupuestosPendientes}
-- Presupuestos aceptados: ${stats.presupuestosAceptados}
-- Total presupuestado: ${formatCurrency(stats.totalPresupuestos)}
-- Total cobrado: ${formatCurrency(stats.totalCobrado)}
-- Pendiente de cobro: ${formatCurrency(stats.totalPendienteCobro)}
-- Facturas vencidas: ${stats.facturasVencidas} por ${formatCurrency(stats.totalVencido)}
-- Anticipos recibidos: ${formatCurrency(stats.anticiposRecibidos)}
-- En obra: ${formatCurrency(stats.enObra)}
-- Pendiente facturar: ${formatCurrency(stats.pendienteFacturar)}
-- Trabajos activos: ${stats.trabajosActivos}
-
-CLIENTES: ${clients.length} totales
-
-FILTROS ACTUALES:
-- Rango fecha: ${filters.dateRange}
-- Estado: ${filters.status}
-- Cliente: ${filters.client === 'all' ? 'Todos' : clients.find(c => c.id === filters.client)?.name || 'N/A'}
-
-ACCIONES DISPONIBLES:
-Puedes sugerir filtros usando estos comandos:
-[FILTRO_FECHA: 7d|30d|90d|365d|all]
-[FILTRO_ESTADO: presupuesto_solicitado|presupuesto_enviado|presupuesto_aceptado|pendiente_facturar|factura_enviada|cobrado|all]
-[FILTRO_CLIENTE: id_cliente|all]
-[EXPORTAR: csv|pdf]
-    `.trim();
-  };
-
+  // AI Assistant functions - using the new hook with filtered context
   const processAiResponse = (response: string) => {
     // Process filter commands
     const dateMatch = response.match(/\[FILTRO_FECHA:\s*(\w+)\]/);
@@ -554,26 +528,40 @@ Puedes sugerir filtros usando estos comandos:
     setIsAiLoading(true);
     
     try {
-      const response = await supabase.functions.invoke('gemini-api', {
-        body: {
-          messages: [
-            ...chatMessages.map(m => ({ role: m.role, parts: [{ text: m.content }] })),
-            { role: 'user', parts: [{ text: userMessage }] }
-          ],
-          systemInstruction: `Eres un asistente de analíticas para un CRM. Responde SIEMPRE en máximo 2 frases cortas y directas.
+      // Build context with filtered data for analytics
+      const contextData = {
+        works: filteredWorks as any[], // Use filtered works
+        clients,
+        presupuestos: filteredPresupuestos as any[],
+        reminders,
+        pantalla: 'analytics' as const,
+        filtrosActivos: {
+          dateRange: filters.dateRange,
+          status: filters.status,
+          client: filters.client === 'all' ? 'Todos' : clients.find(c => c.id === filters.client)?.name || 'N/A',
+          minAmount: filters.minAmount,
+          maxAmount: filters.maxAmount,
+        },
+      };
 
-${buildContext()}
+      // Add extra instructions for analytics context
+      const preguntaConContexto = `
+${userMessage}
 
-Si el usuario pide filtrar, aplicar filtros o ver datos específicos, usa los comandos de acción.
-Si pide exportar, usa [EXPORTAR: csv] o [EXPORTAR: pdf].
-Nunca seas extenso. Sé útil y conciso.`,
-        }
-      });
-      
-      if (response.error) throw response.error;
-      
-      const aiText = response.data?.response || 'No pude procesar tu solicitud.';
-      const cleanedResponse = processAiResponse(aiText);
+INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
+- Responde sobre los datos FILTRADOS actualmente, no sobre todos los datos.
+- Si el usuario pregunta "qué deuda hay" o similar, usa solo los datos del filtro actual.
+- Si el usuario quiere datos globales, acláralo y menciona que está viendo datos filtrados.
+- Puedes usar comandos de acción:
+  [FILTRO_FECHA: 7d|30d|90d|365d|all]
+  [FILTRO_ESTADO: presupuesto_solicitado|presupuesto_enviado|presupuesto_aceptado|pendiente_facturar|factura_enviada|cobrado|all]
+  [FILTRO_CLIENTE: id_cliente|all]
+  [EXPORTAR: csv|pdf]
+- Sé conciso pero completo.
+`;
+
+      const respuesta = await llamarGeminiAsistente(preguntaConContexto, contextData);
+      const cleanedResponse = processAiResponse(respuesta);
       
       setChatMessages(prev => [...prev, { role: 'assistant', content: cleanedResponse }]);
     } catch (error) {
@@ -1131,7 +1119,13 @@ Nunca seas extenso. Sé útil y conciso.`,
                 <Sparkles className="w-8 h-8 mx-auto mb-3 opacity-50" />
                 <p className="text-sm">Pregúntame sobre tus datos:</p>
                 <div className="mt-4 space-y-2">
-                  {['¿Cuánto tengo pendiente de cobro?', 'Filtra por últimos 30 días', 'Exportar datos a CSV'].map((q, i) => (
+                  {[
+                    '¿Cuál es la deuda pendiente por cliente?', 
+                    '¿Qué facturas están vencidas?', 
+                    '¿Cuánto he cobrado este mes?',
+                    'Dame un resumen de riesgos',
+                    'Exportar datos a CSV'
+                  ].map((q, i) => (
                     <button 
                       key={i}
                       onClick={() => { setChatInput(q); }}
@@ -1149,9 +1143,13 @@ Nunca seas extenso. Sé útil y conciso.`,
                 <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${
                   msg.role === 'user' 
                     ? 'bg-primary text-primary-foreground rounded-br-md' 
-                    : 'bg-muted rounded-bl-md'
+                    : 'bg-muted rounded-bl-md prose prose-sm dark:prose-invert max-w-none'
                 }`}>
-                  {msg.content}
+                  {msg.role === 'user' ? (
+                    msg.content
+                  ) : (
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  )}
                 </div>
               </div>
             ))}
