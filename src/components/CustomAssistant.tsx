@@ -78,7 +78,15 @@ export function CustomAssistant() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  // Default to 'read' mode, and force 'read' if user is not authenticated
   const [mode, setMode] = useState<AssistantMode>('read');
+  
+  // Force read mode if user is not authenticated
+  useEffect(() => {
+    if (!user && mode === 'operate') {
+      setMode('read');
+    }
+  }, [user, mode]);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -266,16 +274,22 @@ export function CustomAssistant() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Mode Toggle */}
-          <div className="flex items-center gap-1.5 bg-background rounded-full px-2 py-1">
-            <Eye className={`w-3.5 h-3.5 ${mode === 'read' ? 'text-primary' : 'text-muted-foreground'}`} />
-            <Switch
-              checked={mode === 'operate'}
-              onCheckedChange={(checked) => setMode(checked ? 'operate' : 'read')}
-              className="scale-75"
-            />
-            <Zap className={`w-3.5 h-3.5 ${mode === 'operate' ? 'text-primary' : 'text-muted-foreground'}`} />
-          </div>
+          {/* Mode Toggle - Only show if user is authenticated */}
+          {user ? (
+            <div className="flex items-center gap-1.5 bg-background rounded-full px-2 py-1">
+              <Eye className={`w-3.5 h-3.5 ${mode === 'read' ? 'text-primary' : 'text-muted-foreground'}`} />
+              <Switch
+                checked={mode === 'operate'}
+                onCheckedChange={(checked) => setMode(checked ? 'operate' : 'read')}
+                className="scale-75"
+              />
+              <Zap className={`w-3.5 h-3.5 ${mode === 'operate' ? 'text-primary' : 'text-muted-foreground'}`} />
+            </div>
+          ) : (
+            <Badge variant="outline" className="text-xs">
+              Solo lectura
+            </Badge>
+          )}
           <Button
             variant="ghost"
             size="icon"
