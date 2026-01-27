@@ -1,11 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useClients } from '@/hooks/useClients';
 import { useWorks } from '@/hooks/useWorks';
 import { usePresupuestos } from '@/hooks/usePresupuestos';
 import { useReminders } from '@/hooks/useReminders';
-import { WorkWithClient, WorkStatus, STAGE_CONFIG } from '@/types/database';
+import { WorkWithClient } from '@/types/database';
 import { ArrowLeft, AlertTriangle, XCircle, Clock, Bell, FileText, Calendar, Users, TrendingDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,10 +29,14 @@ interface Alert {
 export default function AlertsPage() {
   const navigate = useNavigate();
   const { loading: authLoading } = useAuth();
-  const { clients } = useClients();
   const { works, isLoading: worksLoading } = useWorks();
   const { presupuestos } = usePresupuestos();
   const { reminders } = useReminders();
+
+  const financialRef = useRef<HTMLDivElement>(null);
+  const commercialRef = useRef<HTMLDivElement>(null);
+  const agendaRef = useRef<HTMLDivElement>(null);
+  const operationalRef = useRef<HTMLDivElement>(null);
 
   const alerts = useMemo(() => {
     const result: Alert[] = [];
@@ -46,7 +49,6 @@ export default function AlertsPage() {
     works.forEach(work => {
       if (work.status === 'factura_enviada' && !work.is_paid && work.due_date) {
         const dueDate = parseISO(work.due_date);
-
         if (isPast(dueDate) && !isToday(dueDate)) {
           const daysOverdue = differenceInDays(now, dueDate);
           const pendingAmount = Number(work.amount) - Number(work.advance_payments || 0);
@@ -56,7 +58,7 @@ export default function AlertsPage() {
             category: 'financial',
             work,
             message: `Factura vencida hace ${daysOverdue} día${daysOverdue > 1 ? 's' : ''}`,
-            details: `Importe pendiente: ${formatCurrency(pendingAmount)} · Vencimiento: ${format(dueDate, 'dd MMM yyyy', { locale: es })}`,
+            details: `Importe: ${formatCurrency(pendingAmount)} · Vencimiento: ${format(dueDate, 'dd MMM yyyy', { locale: es })}`,
             icon: 'danger',
             clientName: work.client?.name,
           });
@@ -65,30 +67,21 @@ export default function AlertsPage() {
     });
 
     // 2. CRÍTICO: Clientes con deuda alta
-    const deudaPorCliente: Record<string, {
-      nombre: string;
-      deuda: number;
-      vencidas: number;
-      works: WorkWithClient[];
-    }> = {};
-
+    const deudaPorCliente: Record<string, { nombre: string; deuda: number; vencidas: number; works: WorkWithClient[] }> = {};
     works.forEach(work => {
       if (work.status === 'factura_enviada' && !work.is_paid) {
         const clientId = work.client_id;
         const clientName = work.client?.name || 'Cliente';
         const deuda = Number(work.amount) - Number(work.advance_payments || 0);
         const vencida = work.due_date && isPast(parseISO(work.due_date));
-
         if (!deudaPorCliente[clientId]) {
           deudaPorCliente[clientId] = { nombre: clientName, deuda: 0, vencidas: 0, works: [] };
         }
-
         deudaPorCliente[clientId].deuda += deuda;
         deudaPorCliente[clientId].works.push(work);
         if (vencida) deudaPorCliente[clientId].vencidas++;
       }
     });
-
     Object.values(deudaPorCliente).forEach(cliente => {
       if (cliente.deuda > 5000 || cliente.vencidas >= 2) {
         result.push({
@@ -97,7 +90,7 @@ export default function AlertsPage() {
           category: 'financial',
           work: cliente.works[0],
           message: `Cliente con deuda alta`,
-          details: `Deuda total: ${formatCurrency(cliente.deuda)} · ${cliente.vencidas} factura${cliente.vencidas !== 1 ? 's' : ''} vencida${cliente.vencidas !== 1 ? 's' : ''}`,
+          details: `Deuda: ${formatCurrency(cliente.deuda)} · ${cliente.vencidas} vencida${cliente.vencidas !== 1 ? 's' : ''}`,
           icon: 'danger',
           clientName: cliente.nombre,
         });
@@ -108,7 +101,6 @@ export default function AlertsPage() {
     reminders.forEach(reminder => {
       if (reminder.is_completed) return;
       const reminderDate = parseISO(reminder.reminder_date);
-
       if (isPast(reminderDate) && !isToday(reminderDate)) {
         const daysOverdue = differenceInDays(now, reminderDate);
         result.push({
@@ -116,7 +108,7 @@ export default function AlertsPage() {
           priority: 'critico',
           category: 'agenda',
           message: `Evento vencido: ${reminder.title}`,
-          details: `Vencido hace ${daysOverdue} día${daysOverdue > 1 ? 's' : ''} · ${format(reminderDate, 'dd MMM yyyy', { locale: es })}`,
+          details: `Hace ${daysOverdue} día${daysOverdue > 1 ? 's' : ''} · ${format(reminderDate, 'dd MMM yyyy', { locale: es })}`,
           icon: 'danger',
         });
       } else if (isToday(reminderDate)) {
@@ -124,8 +116,8 @@ export default function AlertsPage() {
           type: 'reminder_today',
           priority: 'critico',
           category: 'agenda',
-          message: `Evento de hoy: ${reminder.title}`,
-          details: reminder.description || `Programado para hoy`,
+          message: `Hoy: ${reminder.title}`,
+          details: reminder.description || 'Programado para hoy',
           icon: 'danger',
         });
       }
@@ -134,9 +126,7 @@ export default function AlertsPage() {
     // 4. IMPORTANTE: Facturas que vencen hoy
     works.forEach(work => {
       if (work.status === 'factura_enviada' && !work.is_paid && work.due_date) {
-        const dueDate = parseISO(work.due_date);
-
-        if (isToday(dueDate)) {
+        if (isToday(parseISO(work.due_date))) {
           const pendingAmount = Number(work.amount) - Number(work.advance_payments || 0);
           result.push({
             type: 'invoice_due_today',
@@ -144,7 +134,7 @@ export default function AlertsPage() {
             category: 'financial',
             work,
             message: 'Factura vence hoy',
-            details: `Importe pendiente: ${formatCurrency(pendingAmount)}`,
+            details: `Importe: ${formatCurrency(pendingAmount)}`,
             icon: 'warning',
             clientName: work.client?.name,
           });
@@ -155,9 +145,7 @@ export default function AlertsPage() {
     // 5. IMPORTANTE: Presupuestos sin respuesta (+7 días)
     works.forEach(work => {
       if (work.status === 'presupuesto_enviado' && work.budget_sent_at) {
-        const sentAt = parseISO(work.budget_sent_at);
-        const daysSinceSent = differenceInDays(now, sentAt);
-
+        const daysSinceSent = differenceInDays(now, parseISO(work.budget_sent_at));
         if (daysSinceSent >= 7) {
           result.push({
             type: 'budget_no_response',
@@ -165,7 +153,7 @@ export default function AlertsPage() {
             category: 'commercial',
             work,
             message: `Presupuesto sin respuesta`,
-            details: `Enviado hace ${daysSinceSent} días · ${formatCurrency(Number(work.amount))}`,
+            details: `Hace ${daysSinceSent} días · ${formatCurrency(Number(work.amount))}`,
             icon: 'warning',
             clientName: work.client?.name,
           });
@@ -176,15 +164,13 @@ export default function AlertsPage() {
     // 6. IMPORTANTE: Agenda mañana
     reminders.forEach(reminder => {
       if (reminder.is_completed) return;
-      const reminderDate = parseISO(reminder.reminder_date);
-
-      if (isTomorrow(reminderDate)) {
+      if (isTomorrow(parseISO(reminder.reminder_date))) {
         result.push({
           type: 'reminder_tomorrow',
           priority: 'importante',
           category: 'agenda',
-          message: `Evento de mañana: ${reminder.title}`,
-          details: reminder.description || `Programado para mañana`,
+          message: `Mañana: ${reminder.title}`,
+          details: reminder.description || 'Programado para mañana',
           icon: 'warning',
         });
       }
@@ -193,18 +179,16 @@ export default function AlertsPage() {
     // 7. IMPORTANTE: Presupuestos sin respuesta (+48h pero <7 días)
     works.forEach(work => {
       if (work.status === 'presupuesto_enviado' && work.budget_sent_at) {
-        const sentAt = parseISO(work.budget_sent_at);
-        const hoursSinceSent = differenceInHours(now, sentAt);
-        const daysSinceSent = differenceInDays(now, sentAt);
-
+        const hoursSinceSent = differenceInHours(now, parseISO(work.budget_sent_at));
+        const daysSinceSent = differenceInDays(now, parseISO(work.budget_sent_at));
         if (hoursSinceSent >= 48 && daysSinceSent < 7) {
           result.push({
             type: 'budget_pending_48h',
             priority: 'importante',
             category: 'commercial',
             work,
-            message: `Presupuesto esperando respuesta`,
-            details: `Enviado hace ${Math.floor(hoursSinceSent / 24)} días · ${formatCurrency(Number(work.amount))}`,
+            message: `Presupuesto esperando`,
+            details: `Hace ${Math.floor(hoursSinceSent / 24)} días · ${formatCurrency(Number(work.amount))}`,
             icon: 'warning',
             clientName: work.client?.name,
           });
@@ -212,13 +196,14 @@ export default function AlertsPage() {
       }
     });
 
-    // 8. INFORMATIVO: Presupuestos pendientes de envío
-    const presupuestosBorrador = presupuestos.filter(p => p.estado_presupuesto === 'borrador');
-    presupuestosBorrador.forEach(p => {
+    // 8. INFORMATIVO: Presupuestos sin enviar
+    presupuestos.filter(p => p.estado_presupuesto === 'borrador').forEach(p => {
+      const linkedWork = works.find(w => w.id === p.work_id);
       result.push({
         type: 'budgets_draft',
         priority: 'informativo',
         category: 'commercial',
+        work: linkedWork,
         message: `Presupuesto sin enviar`,
         details: `${p.obra_titulo} · ${formatCurrency(p.total_presupuesto)}`,
         icon: 'info',
@@ -226,11 +211,10 @@ export default function AlertsPage() {
       });
     });
 
-    // 9. INFORMATIVO: Facturas pendientes de cobro
-    const facturasPendientes = works.filter(w =>
+    // 9. INFORMATIVO: Facturas pendientes
+    works.filter(w =>
       w.status === 'factura_enviada' && !w.is_paid && w.due_date && !isPast(parseISO(w.due_date)) && !isToday(parseISO(w.due_date))
-    );
-    facturasPendientes.forEach(work => {
+    ).forEach(work => {
       const dueDate = parseISO(work.due_date!);
       const daysUntilDue = differenceInDays(dueDate, now);
       const pendingAmount = Number(work.amount) - Number(work.advance_payments || 0);
@@ -239,7 +223,7 @@ export default function AlertsPage() {
         priority: 'informativo',
         category: 'financial',
         work,
-        message: `Factura pendiente de cobro`,
+        message: `Factura pendiente`,
         details: `Vence en ${daysUntilDue} día${daysUntilDue > 1 ? 's' : ''} · ${formatCurrency(pendingAmount)}`,
         icon: 'info',
         clientName: work.client?.name,
@@ -247,21 +231,19 @@ export default function AlertsPage() {
     });
 
     // 10. INFORMATIVO: Agenda próximos 7 días
-    const proximosReminders = reminders.filter(r => {
+    reminders.filter(r => {
       if (r.is_completed) return false;
       const reminderDate = parseISO(r.reminder_date);
       const in7Days = addDays(now, 7);
-      return !isToday(reminderDate) && !isTomorrow(reminderDate) &&
-        !isPast(reminderDate) && isBefore(reminderDate, in7Days);
-    });
-    proximosReminders.forEach(reminder => {
+      return !isToday(reminderDate) && !isTomorrow(reminderDate) && !isPast(reminderDate) && isBefore(reminderDate, in7Days);
+    }).forEach(reminder => {
       const reminderDate = parseISO(reminder.reminder_date);
       result.push({
         type: 'reminders_upcoming',
         priority: 'informativo',
         category: 'agenda',
         message: reminder.title,
-        details: `${format(reminderDate, 'EEEE dd MMM', { locale: es })}`,
+        details: format(reminderDate, 'EEEE dd MMM', { locale: es }),
         icon: 'info',
       });
     });
@@ -274,33 +256,49 @@ export default function AlertsPage() {
         type: 'risk_operational',
         priority: 'informativo',
         category: 'operational',
-        message: `Riesgo operativo: trabajos sin facturar`,
-        details: `${pendientesFacturar.length} trabajos · ${formatCurrency(total)} pendientes de facturar`,
+        work: pendientesFacturar[0],
+        message: `Trabajos sin facturar`,
+        details: `${pendientesFacturar.length} trabajos · ${formatCurrency(total)}`,
         icon: 'info',
       });
     }
 
     // 12. INFORMATIVO: Riesgo comercial
-    const sinRespuestaTotal = works.filter(w =>
-      w.status === 'presupuesto_enviado' && w.budget_sent_at &&
-      differenceInDays(now, parseISO(w.budget_sent_at)) >= 3
+    const sinRespuesta = works.filter(w =>
+      w.status === 'presupuesto_enviado' && w.budget_sent_at && differenceInDays(now, parseISO(w.budget_sent_at)) >= 3
     );
-    if (sinRespuestaTotal.length >= 5) {
-      const total = sinRespuestaTotal.reduce((sum, w) => sum + Number(w.amount), 0);
+    if (sinRespuesta.length >= 5) {
+      const total = sinRespuesta.reduce((sum, w) => sum + Number(w.amount), 0);
       result.push({
         type: 'risk_commercial',
         priority: 'informativo',
         category: 'commercial',
-        message: `Riesgo comercial: presupuestos estancados`,
-        details: `${sinRespuestaTotal.length} presupuestos · ${formatCurrency(total)} en espera`,
+        work: sinRespuesta[0],
+        message: `Presupuestos estancados`,
+        details: `${sinRespuesta.length} presupuestos · ${formatCurrency(total)}`,
         icon: 'info',
       });
     }
 
-    // Sort by priority
     const prioridadOrden = { critico: 0, importante: 1, informativo: 2 };
     return result.sort((a, b) => prioridadOrden[a.priority] - prioridadOrden[b.priority]);
   }, [works, presupuestos, reminders]);
+
+  const handleAlertClick = (alert: Alert) => {
+    if (alert.work) {
+      navigate('/', { state: { openWorkId: alert.work.id } });
+    }
+  };
+
+  const scrollToSection = (category: AlertCategory) => {
+    const refs: Record<AlertCategory, React.RefObject<HTMLDivElement | null>> = {
+      financial: financialRef,
+      commercial: commercialRef,
+      agenda: agendaRef,
+      operational: operationalRef,
+    };
+    refs[category].current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   if (authLoading || worksLoading) {
     return (
@@ -310,24 +308,19 @@ export default function AlertsPage() {
     );
   }
 
-  // Group by category
   const financialAlerts = alerts.filter(a => a.category === 'financial');
   const commercialAlerts = alerts.filter(a => a.category === 'commercial');
   const operationalAlerts = alerts.filter(a => a.category === 'operational');
   const agendaAlerts = alerts.filter(a => a.category === 'agenda');
 
-  const criticalCount = alerts.filter(a => a.priority === 'critico').length;
-  const importantCount = alerts.filter(a => a.priority === 'importante').length;
-  const infoCount = alerts.filter(a => a.priority === 'informativo').length;
-
   const getPriorityBadge = (priority: AlertPriority) => {
     switch (priority) {
       case 'critico':
-        return <Badge className="bg-destructive/20 text-destructive border-destructive/30 hover:bg-destructive/30">Crítico</Badge>;
+        return <Badge className="bg-destructive/20 text-destructive border-destructive/30">Crítico</Badge>;
       case 'importante':
-        return <Badge className="bg-warning/20 text-warning border-warning/30 hover:bg-warning/30">Importante</Badge>;
+        return <Badge className="bg-warning/20 text-warning border-warning/30">Importante</Badge>;
       default:
-        return <Badge className="bg-muted text-muted-foreground border-border hover:bg-muted/80">Info</Badge>;
+        return <Badge className="bg-muted text-muted-foreground border-border">Info</Badge>;
     }
   };
 
@@ -347,7 +340,7 @@ export default function AlertsPage() {
     return (
       <button
         key={`${alert.type}-${index}`}
-        onClick={() => alert.work && navigate('/')}
+        onClick={() => handleAlertClick(alert)}
         className={`w-full p-4 rounded-xl border transition-all text-left ${bgClass} ${alert.work ? 'cursor-pointer' : 'cursor-default'}`}
       >
         <div className="flex items-start gap-3">
@@ -358,67 +351,58 @@ export default function AlertsPage() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              {alert.clientName && (
-                <span className="font-semibold text-foreground">{alert.clientName}</span>
-              )}
+              {alert.clientName && <span className="font-semibold text-foreground">{alert.clientName}</span>}
               {getPriorityBadge(alert.priority)}
             </div>
             <p className="text-sm font-medium text-foreground">{alert.message}</p>
-            {alert.details && (
-              <p className="text-xs text-muted-foreground mt-1">{alert.details}</p>
-            )}
+            {alert.details && <p className="text-xs text-muted-foreground mt-1">{alert.details}</p>}
           </div>
         </div>
       </button>
     );
   };
 
-  const renderCategory = (title: string, icon: React.ReactNode, categoryAlerts: Alert[], color: string) => {
+  const renderCategory = (
+    title: string,
+    icon: React.ReactNode,
+    categoryAlerts: Alert[],
+    color: string,
+    ref: React.RefObject<HTMLDivElement | null>
+  ) => {
     if (categoryAlerts.length === 0) return null;
-
     const criticals = categoryAlerts.filter(a => a.priority === 'critico').length;
     const importants = categoryAlerts.filter(a => a.priority === 'importante').length;
 
     return (
-      <Card className="border-border/50 bg-card/50 backdrop-blur">
-        <CardHeader className="pb-3">
-          <CardTitle className={`text-lg flex items-center gap-2 ${color}`}>
-            {icon}
-            {title}
-            <span className="text-sm font-normal text-muted-foreground ml-2">
-              ({categoryAlerts.length})
-            </span>
-            {criticals > 0 && (
-              <Badge className="bg-destructive/20 text-destructive border-destructive/30 ml-auto">
-                {criticals} críticas
-              </Badge>
-            )}
-            {importants > 0 && (
-              <Badge className="bg-warning/20 text-warning border-warning/30">
-                {importants} importantes
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {categoryAlerts.map((alert, index) => getAlertCard(alert, index))}
-        </CardContent>
-      </Card>
+      <div ref={ref}>
+        <Card className="border-border/50 bg-card/50 backdrop-blur">
+          <CardHeader className="pb-3">
+            <CardTitle className={`text-lg flex items-center gap-2 ${color}`}>
+              {icon}
+              {title}
+              <span className="text-sm font-normal text-muted-foreground ml-2">({categoryAlerts.length})</span>
+              {criticals > 0 && (
+                <Badge className="bg-destructive/20 text-destructive border-destructive/30 ml-auto">{criticals} críticas</Badge>
+              )}
+              {importants > 0 && (
+                <Badge className="bg-warning/20 text-warning border-warning/30">{importants} importantes</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {categoryAlerts.map((alert, index) => getAlertCard(alert, index))}
+          </CardContent>
+        </Card>
+      </div>
     );
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="container px-4 py-4">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/')}
-              className="shrink-0"
-            >
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="shrink-0">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1">
@@ -426,43 +410,45 @@ export default function AlertsPage() {
                 <AlertTriangle className="w-5 h-5 text-warning" />
                 Centro de Alertas
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {alerts.length} alerta{alerts.length !== 1 ? 's' : ''} activa{alerts.length !== 1 ? 's' : ''}
-              </p>
+              <p className="text-sm text-muted-foreground">{alerts.length} alerta{alerts.length !== 1 ? 's' : ''}</p>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Summary Badges */}
       <div className="container px-4 py-4">
         <div className="flex flex-wrap gap-2 mb-6">
-          {criticalCount > 0 && (
-            <Badge className="bg-destructive/20 text-destructive border-destructive/30 px-3 py-1">
-              <XCircle className="w-3 h-3 mr-1" />
-              {criticalCount} Críticas
-            </Badge>
+          {financialAlerts.length > 0 && (
+            <button onClick={() => scrollToSection('financial')} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors">
+              <TrendingDown className="w-4 h-4" />
+              <span className="text-sm font-medium">Financieras ({financialAlerts.length})</span>
+            </button>
           )}
-          {importantCount > 0 && (
-            <Badge className="bg-warning/20 text-warning border-warning/30 px-3 py-1">
-              <Clock className="w-3 h-3 mr-1" />
-              {importantCount} Importantes
-            </Badge>
+          {commercialAlerts.length > 0 && (
+            <button onClick={() => scrollToSection('commercial')} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 text-warning hover:bg-warning/20 transition-colors">
+              <FileText className="w-4 h-4" />
+              <span className="text-sm font-medium">Comerciales ({commercialAlerts.length})</span>
+            </button>
           )}
-          {infoCount > 0 && (
-            <Badge className="bg-muted text-muted-foreground border-border px-3 py-1">
-              <Bell className="w-3 h-3 mr-1" />
-              {infoCount} Informativas
-            </Badge>
+          {agendaAlerts.length > 0 && (
+            <button onClick={() => scrollToSection('agenda')} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+              <Calendar className="w-4 h-4" />
+              <span className="text-sm font-medium">Agenda ({agendaAlerts.length})</span>
+            </button>
+          )}
+          {operationalAlerts.length > 0 && (
+            <button onClick={() => scrollToSection('operational')} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors">
+              <Users className="w-4 h-4" />
+              <span className="text-sm font-medium">Operativas ({operationalAlerts.length})</span>
+            </button>
           )}
         </div>
 
-        {/* Categories */}
         <div className="space-y-6">
-          {renderCategory('Alertas Financieras', <TrendingDown className="w-5 h-5" />, financialAlerts, 'text-destructive')}
-          {renderCategory('Alertas Comerciales', <FileText className="w-5 h-5" />, commercialAlerts, 'text-warning')}
-          {renderCategory('Alertas de Agenda', <Calendar className="w-5 h-5" />, agendaAlerts, 'text-primary')}
-          {renderCategory('Alertas Operativas', <Users className="w-5 h-5" />, operationalAlerts, 'text-muted-foreground')}
+          {renderCategory('Alertas Financieras', <TrendingDown className="w-5 h-5" />, financialAlerts, 'text-destructive', financialRef)}
+          {renderCategory('Alertas Comerciales', <FileText className="w-5 h-5" />, commercialAlerts, 'text-warning', commercialRef)}
+          {renderCategory('Alertas de Agenda', <Calendar className="w-5 h-5" />, agendaAlerts, 'text-primary', agendaRef)}
+          {renderCategory('Alertas Operativas', <Users className="w-5 h-5" />, operationalAlerts, 'text-muted-foreground', operationalRef)}
         </div>
 
         {alerts.length === 0 && (
@@ -471,7 +457,7 @@ export default function AlertsPage() {
               <AlertTriangle className="w-8 h-8 text-primary" />
             </div>
             <h3 className="text-lg font-semibold mb-2">¡Todo bajo control!</h3>
-            <p className="text-muted-foreground">No hay alertas pendientes en este momento</p>
+            <p className="text-muted-foreground">No hay alertas pendientes</p>
           </div>
         )}
       </div>
