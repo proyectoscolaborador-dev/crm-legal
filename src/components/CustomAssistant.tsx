@@ -174,9 +174,13 @@ export function CustomAssistant() {
         content: m.content
       }));
 
+      // SECURITY: Force 'read' mode if user is not authenticated
+      // 'operate' mode requires authentication to prevent unauthorized data modifications
+      const effectiveMode = user ? mode : 'read';
+
       const { data, error } = await supabase.functions.invoke('assistant', {
         body: {
-          mode,
+          mode: effectiveMode,
           messages: allMessages,
           context
         }
