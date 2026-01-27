@@ -5,6 +5,7 @@ import { useClients } from '@/hooks/useClients';
 import { useWorks } from '@/hooks/useWorks';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { usePresupuestos } from '@/hooks/usePresupuestos';
+import { useReminders } from '@/hooks/useReminders';
 import { WorkWithClient, WorkStatus, Client } from '@/types/database';
 import { WorkWithClientData } from '@/components/CreateWorkModal';
 import { Header } from '@/components/Header';
@@ -33,6 +34,7 @@ export default function Index() {
   const { works, createWork, updateWork, updateWorkStatus, deleteWork, markAsPaid, isLoading: worksLoading } = useWorks();
   const { empresa, isLoading: empresaLoading, isEmpresaComplete } = useEmpresa();
   const { presupuestos, createPresupuesto, deletePresupuesto, getNextNumero } = usePresupuestos();
+  const { reminders } = useReminders();
 
   const [selectedWork, setSelectedWork] = useState<WorkWithClient | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -242,7 +244,12 @@ export default function Index() {
       />
 
       <main className="container px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        <AlertsSection works={works} onWorkClick={handleWorkClick} />
+        <AlertsSection 
+          works={works} 
+          presupuestos={presupuestos}
+          reminders={reminders}
+          onWorkClick={handleWorkClick} 
+        />
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="hidden md:block">
           <TabsList className="bg-muted">
