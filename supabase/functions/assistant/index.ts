@@ -339,29 +339,42 @@ serve(async (req) => {
     
     if (mode === 'operate') {
       const authHeader = req.headers.get('Authorization');
+      console.log('Auth header present:', !!authHeader);
+      
       if (!authHeader?.startsWith('Bearer ')) {
+        console.log('Missing or invalid auth header format');
         return new Response(
           JSON.stringify({ error: 'Authentication required for operate mode' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
+      const token = authHeader.replace('Bearer ', '');
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      
+      console.log('Supabase URL:', supabaseUrl ? 'present' : 'missing');
+      console.log('Supabase Anon Key:', supabaseAnonKey ? 'present' : 'missing');
+      
       const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } }
       });
 
-      const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+      // Use getUser with the token directly
+      const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
+      
+      console.log('getUser result - user:', !!user, 'error:', userError?.message);
       
       if (userError || !user) {
+        console.log('Auth validation failed:', userError?.message || 'No user returned');
         return new Response(
-          JSON.stringify({ error: 'Unauthorized - invalid token for operate mode' }),
+          JSON.stringify({ error: 'Unauthorized - invalid token for operate mode', details: userError?.message }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
       authenticatedUserId = user.id;
+      console.log('Authenticated user ID:', authenticatedUserId);
     }
 
     // Build system prompt
