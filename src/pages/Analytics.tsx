@@ -64,8 +64,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from '@/integrations/supabase/client';
-import { format, subDays, isAfter, isBefore, parseISO, addDays } from 'date-fns';
+import { format, subDays, isAfter, isBefore, parseISO, addDays, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   BarChart,
   Bar,
@@ -111,8 +112,40 @@ const CHART_COLORS = [
   'hsl(340, 82%, 52%)', // pink
 ];
 
+// Demo data generator
+const DEMO_CLIENTS = [
+  { name: 'García Construcciones S.L.', company: 'García Construcciones', email: 'info@garciaconstrucciones.es', phone: '912345678', nif: 'B12345678' },
+  { name: 'María López Arquitecta', company: 'Estudio López', email: 'maria@estudiolopez.com', phone: '623456789', nif: '12345678A' },
+  { name: 'Reformas Modernas', company: 'Reformas Modernas S.A.', email: 'contacto@reformasmodernas.es', phone: '934567890', nif: 'A87654321' },
+  { name: 'Hotel Playa Dorada', company: 'Hoteles Costa S.L.', email: 'mantenimiento@playadorada.com', phone: '956789012', nif: 'B98765432' },
+  { name: 'Comunidad Edificio Sol', company: null, email: 'presidente@edificiosol.org', phone: '645678901', nif: 'H12349876' },
+];
+
+const DEMO_WORKS = [
+  { title: 'Reforma integral cocina', description: 'Demolición, fontanería, electricidad y acabados', amount: 12500 },
+  { title: 'Instalación aire acondicionado', description: 'Sistema multisplit 4x1 con bomba de calor', amount: 4800 },
+  { title: 'Impermeabilización terraza', description: 'Membrana líquida + aislamiento térmico', amount: 3200 },
+  { title: 'Reforma baño completo', description: 'Plato ducha, sanitarios, alicatado', amount: 6500 },
+  { title: 'Instalación solar fotovoltaica', description: '10 paneles 450W + inversor + batería', amount: 15000 },
+  { title: 'Pintura exterior fachada', description: 'Andamiaje, reparación grietas, pintura', amount: 8900 },
+  { title: 'Cambio ventanas PVC', description: '8 ventanas oscilobatientes con rotura puente térmico', amount: 7200 },
+  { title: 'Reforma local comercial', description: 'Adecuación para tienda de ropa', amount: 22000 },
+  { title: 'Instalación domótica', description: 'Control iluminación, persianas, climatización', amount: 5500 },
+  { title: 'Rehabilitación cubierta', description: 'Sustitución tejas, aislamiento, canalones', amount: 18000 },
+];
+
+const WORK_STATUSES: Array<{ status: WorkStatus; weight: number }> = [
+  { status: 'presupuesto_solicitado', weight: 15 },
+  { status: 'presupuesto_enviado', weight: 20 },
+  { status: 'presupuesto_aceptado', weight: 15 },
+  { status: 'pendiente_facturar', weight: 10 },
+  { status: 'factura_enviada', weight: 20 },
+  { status: 'cobrado', weight: 20 },
+];
+
 export default function Analytics() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
   const { works, isLoading: worksLoading } = useWorks();
   const { clients } = useClients();
@@ -140,6 +173,129 @@ export default function Analytics() {
   const [isListening, setIsListening] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
+
+  // Generate demo data
+  const generateDemoData = async () => {
+    if (!user) return;
+    setIsGeneratingDemo(true);
+    
+    try {
+      const clientInserts = DEMO_CLIENTS.map(c => ({
+        ...c,
+        user_id: user.id,
+        address: 'Calle Principal 123',
+        city: 'Madrid',
+        province: 'Madrid',
+        postal_code: '28001',
+        country: 'España',
+      }));
+      
+      const { data: createdClients, error: clientError } = await supabase
+        .from('clients')
+        .insert(clientInserts)
+        .select();
+      
+      if (clientError) throw clientError;
+      
+      const workInserts: any[] = [];
+      const weightedStatuses: WorkStatus[] = [];
+      WORK_STATUSES.forEach(ws => {
+        for (let i = 0; i < ws.weight; i++) {
+          weightedStatuses.push(ws.status);
+        }
+      });
+      
+      for (let i = 0; i < 25; i++) {
+        const client = createdClients![i % createdClients!.length];
+        const workTemplate = DEMO_WORKS[i % DEMO_WORKS.length];
+        const status = weightedStatuses[Math.floor(Math.random() * weightedStatuses.length)];
+        const daysAgo = Math.floor(Math.random() * 180);
+        const createdAt = subDays(new Date(), daysAgo);
+        const amount = workTemplate.amount * (0.8 + Math.random() * 0.4);
+        
+        const work: any = {
+          user_id: user.id,
+          client_id: client.id,
+          title: `${workTemplate.title} - ${client.name.split(' ')[0]}`,
+          description: workTemplate.description,
+          amount: Math.round(amount),
+          status,
+          position: i,
+          created_at: createdAt.toISOString(),
+          is_paid: status === 'cobrado',
+          advance_payments: status === 'factura_enviada' ? Math.round(amount * 0.3) : 0,
+        };
+        
+        if (status === 'presupuesto_enviado') {
+          work.budget_sent_at = subDays(createdAt, -2).toISOString();
+        }
+        if (status === 'factura_enviada') {
+          work.due_date = addDays(createdAt, 30).toISOString().split('T')[0];
+        }
+        
+        workInserts.push(work);
+      }
+      
+      const { data: createdWorks, error: workError } = await supabase
+        .from('works')
+        .insert(workInserts)
+        .select();
+      
+      if (workError) throw workError;
+      
+      const presupuestoInserts = createdWorks!.map((work, idx) => {
+        const client = createdClients!.find(c => c.id === work.client_id)!;
+        const year = new Date(work.created_at).getFullYear();
+        
+        return {
+          user_id: user.id,
+          work_id: work.id,
+          numero_presupuesto: `P-${year}-${String(idx + 1).padStart(4, '0')}`,
+          cliente_nombre: client.name,
+          cliente_email: client.email,
+          cliente_telefono: client.phone,
+          cliente_nif: client.nif,
+          cliente_direccion: 'Calle Principal 123',
+          cliente_ciudad: 'Madrid',
+          cliente_cp: '28001',
+          cliente_provincia: 'Madrid',
+          obra_titulo: work.title,
+          descripcion_trabajo_larga: work.description,
+          partidas: [
+            { descripcion: 'Mano de obra', cantidad: 1, precio_unitario: work.amount * 0.4, importe_linea: work.amount * 0.4 },
+            { descripcion: 'Materiales', cantidad: 1, precio_unitario: work.amount * 0.5, importe_linea: work.amount * 0.5 },
+            { descripcion: 'Varios', cantidad: 1, precio_unitario: work.amount * 0.1, importe_linea: work.amount * 0.1 },
+          ],
+          subtotal: work.amount,
+          iva_porcentaje: 21,
+          iva_importe: work.amount * 0.21,
+          total_presupuesto: work.amount * 1.21,
+          fecha_presupuesto: work.created_at.split('T')[0],
+          validez_dias: 30,
+          estado_presupuesto: work.status === 'presupuesto_solicitado' ? 'borrador' : 
+                              work.status === 'presupuesto_enviado' ? 'enviado' : 'aceptado',
+        };
+      });
+      
+      const { error: presError } = await supabase
+        .from('presupuestos')
+        .insert(presupuestoInserts);
+      
+      if (presError) throw presError;
+      
+      queryClient.invalidateQueries({ queryKey: ['works'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['presupuestos'] });
+      
+      toast.success(`Creados: ${createdClients!.length} clientes, ${createdWorks!.length} trabajos`);
+    } catch (error: any) {
+      console.error('Error generating demo:', error);
+      toast.error('Error: ' + error.message);
+    } finally {
+      setIsGeneratingDemo(false);
+    }
+  };
 
   // Filter logic
   const getDateRange = () => {
@@ -545,6 +701,18 @@ Nunca seas extenso. Sé útil y conciso.`,
           </div>
           
           <div className="flex items-center gap-2">
+            {/* DEMO BUTTON - DELETE LATER */}
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={generateDemoData}
+              disabled={isGeneratingDemo}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {isGeneratingDemo ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+              PRUEBA
+            </Button>
+            
             <Button 
               variant="outline" 
               size="sm" 
