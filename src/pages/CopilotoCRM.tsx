@@ -91,10 +91,17 @@ export default function CopilotoCRM() {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    // Usar setTimeout para asegurar que el DOM se actualice primero
+    const timer = setTimeout(() => {
+      if (scrollRef.current) {
+        const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [messages, isLoading]);
 
   // Focus input on mount
   useEffect(() => {
