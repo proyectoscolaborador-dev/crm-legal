@@ -139,10 +139,11 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
       return;
     }
 
+    // Pass workId so we can return to this work's detail view
     if (linkedPresupuesto) {
-      navigate(`/presupuesto/${linkedPresupuesto.id}`);
+      navigate(`/presupuesto/${linkedPresupuesto.id}`, { state: { returnToWorkId: work.id } });
     } else {
-      navigate('/presupuesto/nuevo', { state: { workId: work.id, client } });
+      navigate('/presupuesto/nuevo', { state: { workId: work.id, client, returnToWorkId: work.id } });
     }
   };
 

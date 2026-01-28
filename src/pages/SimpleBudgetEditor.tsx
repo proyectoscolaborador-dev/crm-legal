@@ -74,7 +74,7 @@ export default function SimpleBudgetEditor() {
   const isEditing = !!id;
   
   // Get work/client data passed from navigation state
-  const routeState = location.state as { workId?: string; client?: any } | null;
+  const routeState = location.state as { workId?: string; client?: any; returnToWorkId?: string } | null;
   
   const { user, loading: authLoading } = useAuth();
   const { empresa, isLoading: empresaLoading, isEmpresaComplete } = useEmpresa();
@@ -568,7 +568,14 @@ export default function SimpleBudgetEditor() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="transition-transform active:scale-90">
+            <Button variant="ghost" size="icon" onClick={() => {
+              // If we came from a work detail, go back to that work
+              if (routeState?.returnToWorkId) {
+                navigate('/', { state: { openWorkId: routeState.returnToWorkId, enterMode: 'casa' } });
+              } else {
+                navigate('/', { state: { enterMode: 'casa' } });
+              }
+            }} className="transition-transform active:scale-90">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-2">
