@@ -4,6 +4,8 @@ import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 
+const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+
 export interface Reminder {
   id: string;
   user_id: string;
@@ -21,27 +23,24 @@ export interface Reminder {
 export function useReminders() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const effectiveUserId = user?.id || DEFAULT_USER_ID;
 
   const { data: reminders = [], isLoading } = useQuery({
-    queryKey: ['reminders', user?.id],
+    queryKey: ['reminders', effectiveUserId],
     queryFn: async () => {
-      if (!user) return [];
       const { data, error } = await supabase
         .from('reminders')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .order('reminder_date', { ascending: true });
       
       if (error) throw error;
       return data as Reminder[];
     },
-    enabled: !!user,
   });
 
   // Realtime subscription
   useEffect(() => {
-    if (!user) return;
-
     const channel = supabase
       .channel('reminders-changes')
       .on(
@@ -50,7 +49,7 @@ export function useReminders() {
           event: '*',
           schema: 'public',
           table: 'reminders',
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${effectiveUserId}`,
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['reminders'] });
@@ -61,7 +60,7 @@ export function useReminders() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+  }, [effectiveUserId, queryClient]);
 
   const createReminder = useMutation({
     mutationFn: async (reminder: {
@@ -72,12 +71,11 @@ export function useReminders() {
       work_id?: string | null;
       reminder_type?: string;
     }) => {
-      if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
         .from('reminders')
         .insert({ 
           ...reminder, 
-          user_id: user.id,
+          user_id: effectiveUserId,
           reminder_type: reminder.reminder_type || 'general',
         })
         .select()
@@ -154,7 +152,6 @@ export function useReminders() {
     },
   });
 
-  // Get today's reminders for notifications
   const todayReminders = reminders.filter(r => {
     const today = new Date().toISOString().split('T')[0];
     return r.reminder_date === today && !r.is_completed;

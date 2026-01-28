@@ -5,39 +5,37 @@ import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 
+const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+
 export function useWorks() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const effectiveUserId = user?.id || DEFAULT_USER_ID;
 
   const { data: works = [], isLoading } = useQuery({
-    queryKey: ['works', user?.id],
+    queryKey: ['works', effectiveUserId],
     queryFn: async () => {
-      if (!user) return [];
       const { data, error } = await supabase
         .from('works')
         .select(`
           *,
           client:clients(*)
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .order('position', { ascending: true });
       
       if (error) throw error;
       
-      // Map the data to ensure images is an array
       return (data || []).map(work => ({
         ...work,
         images: Array.isArray(work.images) ? work.images : [],
         advance_payments: work.advance_payments || 0,
       })) as WorkWithClient[];
     },
-    enabled: !!user,
   });
 
   // Realtime subscription
   useEffect(() => {
-    if (!user) return;
-
     const channel = supabase
       .channel('works-changes')
       .on(
@@ -46,7 +44,7 @@ export function useWorks() {
           event: '*',
           schema: 'public',
           table: 'works',
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${effectiveUserId}`,
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['works'] });
@@ -57,7 +55,7 @@ export function useWorks() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+  }, [effectiveUserId, queryClient]);
 
   const createWork = useMutation({
     mutationFn: async (work: {
@@ -69,12 +67,11 @@ export function useWorks() {
       position?: number;
       images?: string[];
     }) => {
-      if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
         .from('works')
         .insert({ 
           ...work, 
-          user_id: user.id,
+          user_id: effectiveUserId,
           is_paid: false,
           images: work.images || [],
           advance_payments: 0,
@@ -120,17 +117,14 @@ export function useWorks() {
     mutationFn: async ({ id, status, position }: { id: string; status: WorkStatus; position: number }) => {
       const updates: Partial<Work> = { status, position };
       
-      // Track when budget is sent
       if (status === 'presupuesto_enviado') {
         updates.budget_sent_at = new Date().toISOString();
       }
       
-      // Track when budget gets response
       if (status === 'presupuesto_aceptado' || status === 'factura_enviada') {
         updates.budget_responded_at = new Date().toISOString();
       }
 
-      // Mark as paid when moving to cobrado
       if (status === 'cobrado') {
         updates.is_paid = true;
       }

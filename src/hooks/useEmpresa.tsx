@@ -4,35 +4,34 @@ import { EmpresaUsuario, EmpresaFormData } from '@/types/empresa';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
+const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+
 export function useEmpresa() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const effectiveUserId = user?.id || DEFAULT_USER_ID;
 
   const { data: empresa, isLoading, error } = useQuery({
-    queryKey: ['empresa', user?.id],
+    queryKey: ['empresa', effectiveUserId],
     queryFn: async () => {
-      if (!user) return null;
       const { data, error } = await supabase
         .from('empresa_usuario')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .maybeSingle();
       
       if (error) throw error;
       return data as EmpresaUsuario | null;
     },
-    enabled: !!user,
   });
 
   const saveEmpresa = useMutation({
     mutationFn: async (data: EmpresaFormData) => {
-      if (!user) throw new Error('No autenticado');
-      
       // Check if empresa exists
       const { data: existing } = await supabase
         .from('empresa_usuario')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .maybeSingle();
 
       if (existing) {
@@ -40,7 +39,7 @@ export function useEmpresa() {
         const { data: updated, error } = await supabase
           .from('empresa_usuario')
           .update(data)
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .select()
           .single();
         
@@ -50,7 +49,7 @@ export function useEmpresa() {
         // Insert
         const { data: created, error } = await supabase
           .from('empresa_usuario')
-          .insert({ ...data, user_id: user.id })
+          .insert({ ...data, user_id: effectiveUserId })
           .select()
           .single();
         
@@ -69,10 +68,8 @@ export function useEmpresa() {
 
   const uploadLogo = useMutation({
     mutationFn: async (file: File) => {
-      if (!user) throw new Error('No autenticado');
-      
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/logo.${fileExt}`;
+      const fileName = `${effectiveUserId}/logo.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('presupuestos-pdf')
