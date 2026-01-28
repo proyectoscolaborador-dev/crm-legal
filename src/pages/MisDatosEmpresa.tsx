@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
 import { useEmpresa } from '@/hooks/useEmpresa';
 import { EmpresaFormData } from '@/types/empresa';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,6 @@ import { ArrowLeft, Building2, Upload, Loader2, Save } from 'lucide-react';
 export default function MisDatosEmpresa() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, loading: authLoading } = useAuth();
   const { empresa, isLoading, saveEmpresa, uploadLogo } = useEmpresa();
   
   const returnTo = (location.state as { returnTo?: string })?.returnTo || '/';
@@ -52,17 +50,12 @@ export default function MisDatosEmpresa() {
     }
   }, [empresa]);
 
-  if (authLoading || isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!user) {
-    navigate('/auth');
-    return null;
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
