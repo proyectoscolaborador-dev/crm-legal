@@ -14,7 +14,9 @@ import {
   Zap,
   Eye,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -78,6 +80,7 @@ export function CustomAssistant() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   // Default to 'read' mode, and force 'read' if user is not authenticated
   const [mode, setMode] = useState<AssistantMode>('read');
   
@@ -90,6 +93,49 @@ export function CustomAssistant() {
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Speech Recognition Setup
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'es-ES';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev + ' ' + transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = () => {
+        setIsListening(false);
+        toast.error('Error en reconocimiento de voz');
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
+
+  const toggleVoice = () => {
+    if (!recognitionRef.current) {
+      toast.error('Tu navegador no soporta reconocimiento de voz');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+      toast.info('🎤 Escuchando... habla ahora');
+    }
+  };
 
   // Save messages to localStorage
   useEffect(() => {
@@ -460,14 +506,23 @@ export function CustomAssistant() {
       {/* Input Area */}
       <div className="p-3 border-t border-border">
         <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleVoice}
+            className={`h-10 w-10 flex-shrink-0 rounded-lg ${isListening ? 'bg-red-500/20 text-red-500 animate-pulse' : 'hover:bg-primary/10'}`}
+          >
+            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          </Button>
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={mode === 'read' ? 'Pregunta algo...' : 'Pide una acción...'}
+            placeholder={isListening ? 'Escuchando...' : (mode === 'read' ? 'Pregunta algo...' : 'Pide una acción...')}
             className="min-h-[40px] max-h-[100px] resize-none text-sm"
-            disabled={isLoading}
+            disabled={isLoading || isListening}
             rows={1}
           />
           <Button

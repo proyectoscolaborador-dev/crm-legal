@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, HardHat, UserPlus, Briefcase, CalendarDays, Sparkles, ArrowRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,6 @@ import Index from './Index';
 import { NewClientModal } from '@/components/NewClientModal';
 import { CreateWorkModal } from '@/components/CreateWorkModal';
 import { useClients } from '@/hooks/useClients';
-import { useNavigate } from 'react-router-dom';
 import { Client } from '@/types/database';
 import { WorkWithClientData } from '@/components/CreateWorkModal';
 import { useWorks } from '@/hooks/useWorks';
@@ -17,10 +17,16 @@ import { ObraAssistant } from '@/components/ObraAssistant';
 type ViewMode = 'selection' | 'casa' | 'obra';
 
 export default function Landing() {
-  const [viewMode, setViewMode] = useState<ViewMode>('selection');
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if we're coming from alerts with a work to open - auto-enter 'casa' mode
+  const initialState = location.state as { openWorkId?: string; fromAlerts?: boolean } | null;
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    initialState?.openWorkId ? 'casa' : 'selection'
+  );
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
   const [isNewWorkOpen, setIsNewWorkOpen] = useState(false);
-  const navigate = useNavigate();
   
   const { clients, createClient } = useClients();
   const { createWork } = useWorks();
