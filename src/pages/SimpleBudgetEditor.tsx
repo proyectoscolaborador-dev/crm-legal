@@ -175,22 +175,16 @@ export default function SimpleBudgetEditor() {
     }
   }, [isEditing, id, presupuestos, presupuestosLoading, routeState, works, getNextNumero, dataLoaded]);
 
-  // Redirect if empresa not complete
+  // Redirect if empresa not complete (works for both authenticated and anonymous users)
   useEffect(() => {
-    if (!empresaLoading && !isEmpresaComplete && user) {
+    if (!empresaLoading && !isEmpresaComplete) {
+      toast.error('Debes completar los datos de tu empresa primero');
       navigate('/mis-datos-empresa', { 
         state: { returnTo: '/' },
         replace: true 
       });
     }
-  }, [empresaLoading, isEmpresaComplete, user, navigate]);
-
-  // Handle auth redirect
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-    }
-  }, [authLoading, user, navigate]);
+  }, [empresaLoading, isEmpresaComplete, navigate]);
 
   // === FORM HANDLERS (all use local state only) ===
   
@@ -558,16 +552,12 @@ export default function SimpleBudgetEditor() {
 
   // === RENDER ===
   
-  if (authLoading || empresaLoading || presupuestosLoading) {
+  if (empresaLoading || presupuestosLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   const isFormValid = formData.cliente_nombre && formData.obra_titulo && formData.partidas.length > 0;
