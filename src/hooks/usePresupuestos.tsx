@@ -4,6 +4,8 @@ import { Presupuesto, PresupuestoFormData, PresupuestoUpdateData, Partida } from
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
+const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+
 // Helper to parse partidas from JSON
 const parsePresupuesto = (data: Record<string, unknown>): Presupuesto => ({
   ...data,
@@ -13,34 +15,30 @@ const parsePresupuesto = (data: Record<string, unknown>): Presupuesto => ({
 export function usePresupuestos() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const effectiveUserId = user?.id || DEFAULT_USER_ID;
 
   const { data: presupuestos = [], isLoading } = useQuery({
-    queryKey: ['presupuestos', user?.id],
+    queryKey: ['presupuestos', effectiveUserId],
     queryFn: async () => {
-      if (!user) return [];
       const { data, error } = await supabase
         .from('presupuestos')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return (data || []).map(parsePresupuesto);
     },
-    enabled: !!user,
   });
 
   const createPresupuesto = useMutation({
     mutationFn: async (formData: PresupuestoFormData) => {
-      if (!user) throw new Error('No autenticado');
-      
       // Calculate totals
       const partidas = formData.partidas || [];
       const subtotal = partidas.reduce((sum: number, p: Partida) => sum + (p.importe_linea || 0), 0);
       const iva_importe = subtotal * (formData.iva_porcentaje || 21) / 100;
       const total_presupuesto = subtotal + iva_importe;
 
-      // Prepare insert data without spreading formData
       const insertData = {
         numero_presupuesto: formData.numero_presupuesto,
         cliente_nombre: formData.cliente_nombre,
@@ -60,7 +58,7 @@ export function usePresupuestos() {
         validez_dias: formData.validez_dias,
         comercial_nombre: formData.comercial_nombre || null,
         work_id: formData.work_id || null,
-        user_id: user.id,
+        user_id: effectiveUserId,
         subtotal,
         iva_importe,
         total_presupuesto,
@@ -77,11 +75,9 @@ export function usePresupuestos() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['presupuestos'] });
-      // Toast handled in component for better UX
     },
     onError: (error) => {
       console.error('Error creating presupuesto:', error);
-      // Re-throw to allow component to handle
       throw error;
     },
   });
@@ -90,7 +86,6 @@ export function usePresupuestos() {
     mutationFn: async (updateData: PresupuestoUpdateData) => {
       const { id, ...formData } = updateData;
       
-      // Recalculate totals if partidas changed
       let updates: Record<string, unknown> = { ...formData };
       
       if (formData.partidas) {
@@ -116,11 +111,9 @@ export function usePresupuestos() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['presupuestos'] });
-      // Toast handled in component for better UX
     },
     onError: (error) => {
       console.error('Error updating presupuesto:', error);
-      // Re-throw to allow component to handle
       throw error;
     },
   });
@@ -143,7 +136,6 @@ export function usePresupuestos() {
     },
   });
 
-  // Generate next presupuesto number
   const getNextNumero = () => {
     const year = new Date().getFullYear();
     const count = presupuestos.filter(p => 

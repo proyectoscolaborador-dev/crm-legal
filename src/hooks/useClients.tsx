@@ -4,32 +4,32 @@ import { Client } from '@/types/database';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
+const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+
 export function useClients() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const effectiveUserId = user?.id || DEFAULT_USER_ID;
 
   const { data: clients = [], isLoading } = useQuery({
-    queryKey: ['clients', user?.id],
+    queryKey: ['clients', effectiveUserId],
     queryFn: async () => {
-      if (!user) return [];
       const { data, error } = await supabase
         .from('clients')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data as Client[];
     },
-    enabled: !!user,
   });
 
   const createClient = useMutation({
     mutationFn: async (client: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-      if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
         .from('clients')
-        .insert({ ...client, user_id: user.id })
+        .insert({ ...client, user_id: effectiveUserId })
         .select()
         .single();
       
