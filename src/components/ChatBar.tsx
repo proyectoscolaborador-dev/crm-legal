@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Bot, 
   User, 
@@ -10,11 +9,11 @@ import {
   ChevronUp,
   ChevronDown,
   Zap,
-  Eye,
   CheckCircle2,
   XCircle,
   Trash2,
-  Sparkles
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useClients } from '@/hooks/useClients';
@@ -45,8 +44,6 @@ interface ExecutedAction {
   error?: string;
 }
 
-type AssistantMode = 'read' | 'operate';
-
 const CHAT_STORAGE_KEY = 'chatbar-messages';
 
 export function ChatBar() {
@@ -76,11 +73,11 @@ export function ChatBar() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [mode, setMode] = useState<AssistantMode>('operate');
+  const [isListening, setIsListening] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     try {
@@ -90,7 +87,6 @@ export function ChatBar() {
     }
   }, [messages]);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -100,13 +96,55 @@ export function ChatBar() {
   useEffect(() => {
     if (isExpanded) {
       setTimeout(() => {
-        inputRef.current?.focus();
+        textareaRef.current?.focus();
         if (messagesEndRef.current) {
           messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
       }, 100);
     }
   }, [isExpanded]);
+
+  // Speech Recognition Setup
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'es-ES';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev + ' ' + transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = () => {
+        setIsListening(false);
+        toast.error('Error en reconocimiento de voz');
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
+
+  const toggleVoice = () => {
+    if (!recognitionRef.current) {
+      toast.error('Tu navegador no soporta reconocimiento de voz');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+      toast.info('🎤 Escuchando... habla ahora');
+    }
+  };
 
   const buildContext = useCallback(() => {
     return {
@@ -134,7 +172,7 @@ export function ChatBar() {
           total_presupuesto: p.total_presupuesto,
           estado_presupuesto: p.estado_presupuesto
         })),
-        facturas: works.slice(0, 10).map(w => ({
+        trabajos: works.slice(0, 10).map(w => ({
           id: w.id,
           title: w.title,
           amount: w.amount,
@@ -156,7 +194,6 @@ export function ChatBar() {
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const messageToSend = input.trim();
     setInput('');
     setIsLoading(true);
 
@@ -169,39 +206,44 @@ export function ChatBar() {
 
       const { data, error } = await supabase.functions.invoke('assistant', {
         body: {
-          mode,
+          mode: 'operate',
           messages: allMessages,
-          context
+          context,
+          systemPrompt: `Eres un asistente de EJECUCIÓN de tareas para un CRM de reformas. 
+          SOLO ejecutas acciones, NO haces consultas largas. 
+          Para consultas detalladas y analíticas, indica al usuario que acuda a esas secciones.
+          
+          SIEMPRE que completes una acción, ofrece: "¿Quieres que lo añada a tu agenda?"
+          
+          Responde de forma MUY breve. Usa emojis. 
+          
+          Formatea la información usando markdown:
+          - **Negrita** para nombres
+          - Viñetas para listas`
         }
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: data?.reply || 'Lo siento, no pude procesar tu solicitud.',
+        content: data?.reply || 'Acción completada.',
         timestamp: new Date(),
         actions: data?.executedActions
       };
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      if (data?.executedActions && data.executedActions.length > 0) {
+      if (data?.executedActions?.length > 0) {
         const successfulActions = data.executedActions.filter((a: ExecutedAction) => a.success);
         if (successfulActions.length > 0) {
           queryClient.invalidateQueries({ queryKey: ['clients'] });
           queryClient.invalidateQueries({ queryKey: ['works'] });
           queryClient.invalidateQueries({ queryKey: ['reminders'] });
           queryClient.invalidateQueries({ queryKey: ['presupuestos'] });
-          
-          toast.success(`${successfulActions.length} acción(es) ejecutada(s) correctamente`);
+          toast.success(`✅ ${successfulActions.length} acción(es) ejecutada(s)`);
         }
         
         const failedActions = data.executedActions.filter((a: ExecutedAction) => !a.success);
@@ -213,17 +255,16 @@ export function ChatBar() {
     } catch (error) {
       console.error('Error calling assistant:', error);
       const msg = error instanceof Error ? error.message : 'Error desconocido';
-      const errorMessage: Message = {
+      setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `Lo siento, hubo un error: ${msg}`,
+        content: `❌ Error: ${msg}`,
         timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      }]);
       toast.error('Error al comunicar con el asistente');
     } finally {
       setIsLoading(false);
-      inputRef.current?.focus();
+      textareaRef.current?.focus();
     }
   };
 
@@ -240,41 +281,42 @@ export function ChatBar() {
     toast.success('Historial borrado');
   };
 
+  const quickAction = (text: string) => {
+    setInput(text);
+    textareaRef.current?.focus();
+  };
+
   return (
     <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-card via-card to-card/95 border-t-2 border-primary/20 shadow-2xl">
       {/* Expanded Chat Area */}
       {isExpanded && (
         <div className="h-[350px] border-b border-primary/10 bg-gradient-to-b from-background/50 to-background">
-          <div 
-            ref={scrollContainerRef}
-            className="h-full overflow-y-auto p-4 scroll-smooth"
-          >
+          <div className="h-full overflow-y-auto p-4 scroll-smooth scrollbar-thin">
             <div className="space-y-4 max-w-3xl mx-auto">
               {messages.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-4 animate-pulse">
-                    <Sparkles className="w-8 h-8 text-primary" />
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4">
+                    <Zap className="w-8 h-8 text-primary-foreground" />
                   </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    ¡Hola! Soy tu Copiloto IA
+                  <h3 className="text-lg font-bold text-foreground mb-2">
+                    🚀 Bot de Ejecución
                   </h3>
-                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                    {mode === 'read' 
-                      ? 'Pregúntame sobre tus clientes, presupuestos o trabajos' 
-                      : 'Puedo crear clientes, citas, presupuestos y más. ¡Solo pídelo!'}
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Soy un bot de ejecución de tareas.<br/>
+                    Para consultas y analíticas, acude a esas secciones.
                   </p>
-                  <div className="flex flex-wrap gap-2 justify-center mt-4">
+                  <div className="flex flex-wrap gap-2 justify-center">
                     <button 
-                      onClick={() => setInput('¿Cuántos clientes tengo?')}
-                      className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full transition-colors"
+                      onClick={() => quickAction('Crea un cliente nuevo llamado ')}
+                      className="text-xs bg-primary/15 hover:bg-primary/25 text-primary px-3 py-2 rounded-lg transition-colors"
                     >
-                      ¿Cuántos clientes tengo?
+                      ➕ Nuevo cliente
                     </button>
                     <button 
-                      onClick={() => setInput('Crea un recordatorio para mañana')}
-                      className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full transition-colors"
+                      onClick={() => quickAction('Añade un recordatorio para ')}
+                      className="text-xs bg-secondary/15 hover:bg-secondary/25 text-secondary px-3 py-2 rounded-lg transition-colors"
                     >
-                      Crear recordatorio
+                      📅 Recordatorio
                     </button>
                   </div>
                 </div>
@@ -285,11 +327,7 @@ export function ChatBar() {
                   key={message.id}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
                 >
-                  <div
-                    className={`flex gap-3 max-w-[85%] ${
-                      message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                    }`}
-                  >
+                  <div className={`flex gap-3 max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div
                       className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${
                         message.role === 'user'
@@ -297,11 +335,7 @@ export function ChatBar() {
                           : 'bg-gradient-to-br from-primary to-secondary text-primary-foreground'
                       }`}
                     >
-                      {message.role === 'user' ? (
-                        <User className="w-4 h-4" />
-                      ) : (
-                        <Bot className="w-4 h-4" />
-                      )}
+                      {message.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                     </div>
                     <div className="space-y-1.5">
                       <div
@@ -312,8 +346,8 @@ export function ChatBar() {
                         }`}
                       >
                         {message.role === 'assistant' ? (
-                          <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
-                            <ReactMarkdown>{typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}</ReactMarkdown>
+                          <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1">
+                            <ReactMarkdown>{message.content}</ReactMarkdown>
                           </div>
                         ) : (
                           <p className="whitespace-pre-wrap">{message.content}</p>
@@ -327,18 +361,12 @@ export function ChatBar() {
                               key={idx}
                               className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
                                 action.success 
-                                  ? 'bg-green-500/15 text-green-600 dark:text-green-400' 
-                                  : 'bg-red-500/15 text-red-600 dark:text-red-400'
+                                  ? 'bg-green-500/15 text-green-400' 
+                                  : 'bg-red-500/15 text-red-400'
                               }`}
                             >
-                              {action.success ? (
-                                <CheckCircle2 className="w-3 h-3" />
-                              ) : (
-                                <XCircle className="w-3 h-3" />
-                              )}
-                              <span>
-                                {action.action.type.replace('_', ' ')} {action.action.entity}
-                              </span>
+                              {action.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                              <span>{action.action.type} {action.action.entity}</span>
                             </div>
                           ))}
                         </div>
@@ -349,26 +377,21 @@ export function ChatBar() {
               ))}
 
               {isLoading && (
-                <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div className="flex gap-3 max-w-[85%]">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 shadow-sm">
+                <div className="flex justify-start animate-in fade-in">
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                       <Bot className="w-4 h-4 text-primary-foreground" />
                     </div>
-                    <div className="rounded-2xl rounded-tl-md px-4 py-3 bg-card border border-border shadow-sm">
+                    <div className="rounded-2xl rounded-tl-md px-4 py-3 bg-card border border-border">
                       <div className="flex items-center gap-2">
-                        <div className="flex gap-1">
-                          <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                        </div>
-                        <span className="text-xs text-muted-foreground ml-1">Pensando...</span>
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span className="text-sm text-muted-foreground">Ejecutando...</span>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
               
-              {/* Scroll anchor */}
               <div ref={messagesEndRef} />
             </div>
           </div>
@@ -390,30 +413,32 @@ export function ChatBar() {
 
           {/* Bot Icon with gradient */}
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 shadow-md">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
+            <Zap className="w-5 h-5 text-primary-foreground" />
           </div>
 
-          {/* Mode Toggle */}
-          <div className="flex items-center gap-1.5 bg-muted/80 rounded-xl px-3 py-2 flex-shrink-0">
-            <Eye className={`w-4 h-4 transition-colors ${mode === 'read' ? 'text-primary' : 'text-muted-foreground'}`} />
-            <Switch
-              checked={mode === 'operate'}
-              onCheckedChange={(checked) => setMode(checked ? 'operate' : 'read')}
-              className="scale-90"
+          {/* Input - Larger for mobile */}
+          <div className="flex-1 relative">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ejecutar: crear cliente, recordatorio..."
+              className="min-h-[44px] max-h-[80px] resize-none rounded-xl border-primary/20 focus:border-primary/40 bg-background/50 pr-12 text-base py-3"
+              disabled={isLoading}
+              rows={1}
             />
-            <Zap className={`w-4 h-4 transition-colors ${mode === 'operate' ? 'text-primary' : 'text-muted-foreground'}`} />
+            {/* Voice Button inside textarea */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={toggleVoice}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg ${isListening ? 'bg-red-500/20 text-red-500 animate-pulse' : 'hover:bg-primary/10'}`}
+            >
+              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
           </div>
-
-          {/* Input */}
-          <Input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={mode === 'read' ? 'Pregunta sobre tu CRM...' : 'Pide una acción: crear cliente, recordatorio...'}
-            className="flex-1 h-10 rounded-xl border-primary/20 focus:border-primary/40 bg-background/50"
-            disabled={isLoading}
-          />
 
           {/* Send Button */}
           <Button
@@ -422,11 +447,7 @@ export function ChatBar() {
             size="icon"
             className="h-10 w-10 flex-shrink-0 rounded-xl bg-gradient-to-r from-primary to-secondary hover:opacity-90 shadow-md"
           >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
 
           {/* Clear History */}

@@ -27,7 +27,11 @@ import { Navigate } from 'react-router-dom';
 import { Loader2, Home, Calendar, Users, BarChart3, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function Index() {
+interface IndexProps {
+  onBack?: () => void;
+}
+
+export default function Index({ onBack }: IndexProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
@@ -256,6 +260,7 @@ export default function Index() {
         onNewWork={handleNewWorkClick}
         onImportCSV={() => setIsImportOpen(true)}
         onNewClient={() => setIsNewClientOpen(true)}
+        onBack={onBack}
       />
 
       <main className="container px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
