@@ -669,9 +669,7 @@ INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+  // No auth required - app works without login
 
   return (
     <div className="min-h-screen bg-background">
