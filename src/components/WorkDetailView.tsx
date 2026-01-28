@@ -148,11 +148,12 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
   const handlePreviewPdf = async () => {
     if (!isEmpresaComplete || !empresa) {
       toast.error('Debes completar los datos de tu empresa primero');
+      navigate('/mis-datos-empresa', { state: { returnTo: '/' } });
       return;
     }
 
     if (!linkedPresupuesto) {
-      toast.error('No hay presupuesto asociado');
+      toast.error('No hay presupuesto asociado. Primero edita el presupuesto.');
       return;
     }
 
@@ -175,8 +176,14 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
   };
 
   const handleDownloadPdf = async () => {
-    if (!linkedPresupuesto || !empresa) {
-      toast.error('No hay presupuesto disponible');
+    if (!isEmpresaComplete || !empresa) {
+      toast.error('Debes completar los datos de tu empresa primero');
+      navigate('/mis-datos-empresa', { state: { returnTo: '/' } });
+      return;
+    }
+    
+    if (!linkedPresupuesto) {
+      toast.error('No hay presupuesto disponible. Primero edita el presupuesto.');
       return;
     }
     
