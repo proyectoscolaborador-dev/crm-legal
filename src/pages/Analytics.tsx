@@ -637,15 +637,17 @@ INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
     toast.success('CSV descargado');
   };
 
+  const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+
   // Reset data
   const handleResetData = async () => {
-    if (!user) return;
+    const effectiveUserId = user?.id || DEFAULT_USER_ID;
     setIsResetting(true);
     try {
-      await supabase.from('presupuestos').delete().eq('user_id', user.id);
-      await supabase.from('works').delete().eq('user_id', user.id);
-      await supabase.from('clients').delete().eq('user_id', user.id);
-      await supabase.from('reminders').delete().eq('user_id', user.id);
+      await supabase.from('presupuestos').delete().eq('user_id', effectiveUserId);
+      await supabase.from('works').delete().eq('user_id', effectiveUserId);
+      await supabase.from('clients').delete().eq('user_id', effectiveUserId);
+      await supabase.from('reminders').delete().eq('user_id', effectiveUserId);
       
       toast.success('Datos eliminados');
       setResetDialogOpen(false);
