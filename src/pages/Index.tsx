@@ -62,11 +62,9 @@ export default function Index({ onBack }: IndexProps) {
       if (workToOpen) {
         setSelectedWork(workToOpen);
         setIsDetailOpen(true);
-        // Clear the state to prevent reopening on subsequent renders, but keep fromAlerts for back navigation
-        navigate(location.pathname, { replace: true, state: { fromAlerts: state.fromAlerts } });
       }
     }
-  }, [location.state, works, navigate, location.pathname]);
+  }, [location.state, works]);
 
   // Listen for navigate-to-tab events from Landing
   useEffect(() => {
@@ -109,11 +107,16 @@ export default function Index({ onBack }: IndexProps) {
 
   const handleCloseDetail = () => {
     const state = location.state as { fromAlerts?: boolean } | null;
+    const cameFromAlerts = state?.fromAlerts;
+    
+    // Clear the state completely to avoid future redirects
+    navigate(location.pathname, { replace: true, state: {} });
+    
     setIsDetailOpen(false);
     setSelectedWork(null);
     
-    // If came from alerts, navigate back to alerts
-    if (state?.fromAlerts) {
+    // Only navigate to alerts if we JUST came from there in this exact session
+    if (cameFromAlerts) {
       navigate('/alertas');
     }
   };
