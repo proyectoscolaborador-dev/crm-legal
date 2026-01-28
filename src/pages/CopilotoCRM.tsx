@@ -101,90 +101,80 @@ export default function CopilotoCRM() {
     inputRef.current?.focus();
   }, []);
 
-  // Build context with ALL CRM data
+  // Build context with OPTIMIZED CRM data (reduce tokens)
   const buildContext = useCallback(() => {
+    // Calcular estadísticas
+    const cobrados = works.filter(w => w.is_paid || w.status === 'cobrado');
+    const pendientes = works.filter(w => !w.is_paid && w.status !== 'cobrado');
+    const importeCobrado = cobrados.reduce((sum, w) => sum + Number(w.amount), 0);
+    const importePendiente = pendientes.reduce((sum, w) => sum + Number(w.amount), 0);
+    const anticipos = works.reduce((sum, w) => sum + Number(w.advance_payments || 0), 0);
+    
+    // Presupuestos por estado
+    const presBorrador = presupuestos.filter(p => p.estado_presupuesto === 'borrador');
+    const presEnviado = presupuestos.filter(p => p.estado_presupuesto === 'enviado');
+    const presAceptado = presupuestos.filter(p => p.estado_presupuesto === 'aceptado');
+    
+    // Recordatorios pendientes
+    const recordatoriosPendientes = reminders.filter(r => !r.is_completed);
+    
     return {
       currentUser: user ? { id: user.id, email: user.email } : undefined,
       currentRoute: '/copiloto',
+      // Enviar solo los últimos 15 registros de cada tipo para reducir tokens
       lastRecords: {
-        // TODOS los clientes con información completa
-        clientes: clients.map(c => ({
+        clientes: clients.slice(0, 15).map(c => ({
           id: c.id,
           name: c.name,
           company: c.company,
           phone: c.phone,
           email: c.email,
-          address: c.address,
-          city: c.city,
-          province: c.province,
-          postal_code: c.postal_code,
-          nif: c.nif,
-          notes: c.notes,
-          created_at: c.created_at
+          city: c.city
         })),
-        // TODOS los recordatorios/citas
-        citas: reminders.map(r => ({
+        citas: recordatoriosPendientes.slice(0, 10).map(r => ({
           id: r.id,
           title: r.title,
-          description: r.description,
           reminder_date: r.reminder_date,
-          reminder_time: r.reminder_time,
-          reminder_type: r.reminder_type,
-          is_completed: r.is_completed,
-          work_id: r.work_id,
-          created_at: r.created_at
+          reminder_type: r.reminder_type
         })),
-        // TODOS los presupuestos
-        presupuestos: presupuestos.map(p => ({
+        presupuestos: presupuestos.slice(0, 15).map(p => ({
           id: p.id,
           numero_presupuesto: p.numero_presupuesto,
           cliente_nombre: p.cliente_nombre,
-          cliente_email: p.cliente_email,
-          cliente_telefono: p.cliente_telefono,
           obra_titulo: p.obra_titulo,
-          descripcion_trabajo_larga: p.descripcion_trabajo_larga,
-          subtotal: p.subtotal,
-          iva_porcentaje: p.iva_porcentaje,
-          iva_importe: p.iva_importe,
           total_presupuesto: p.total_presupuesto,
-          fecha_presupuesto: p.fecha_presupuesto,
-          validez_dias: p.validez_dias,
-          estado_presupuesto: p.estado_presupuesto,
-          work_id: p.work_id,
-          created_at: p.created_at
+          estado_presupuesto: p.estado_presupuesto
         })),
-        // TODOS los trabajos/facturas
-        facturas: works.map(w => ({
+        facturas: works.slice(0, 15).map(w => ({
           id: w.id,
           title: w.title,
-          description: w.description,
           amount: w.amount,
           status: w.status,
           is_paid: w.is_paid,
-          advance_payments: w.advance_payments,
-          due_date: w.due_date,
-          invoice_number: w.invoice_number,
-          budget_sent_at: w.budget_sent_at,
-          budget_responded_at: w.budget_responded_at,
-          client_id: w.client_id,
-          client_name: w.client?.name,
-          client_email: w.client?.email,
-          client_phone: w.client?.phone,
-          created_at: w.created_at
+          client_name: w.client?.name
         }))
       },
-      // Estadísticas resumen
+      // Estadísticas COMPLETAS (esto es lo importante para responder preguntas)
       stats: {
         total_clientes: clients.length,
         total_trabajos: works.length,
         total_presupuestos: presupuestos.length,
         total_recordatorios: reminders.length,
-        recordatorios_pendientes: reminders.filter(r => !r.is_completed).length,
-        trabajos_cobrados: works.filter(w => w.is_paid || w.status === 'cobrado').length,
-        trabajos_pendientes: works.filter(w => !w.is_paid && w.status !== 'cobrado').length,
+        recordatorios_pendientes: recordatoriosPendientes.length,
+        trabajos_cobrados: cobrados.length,
+        trabajos_pendientes: pendientes.length,
         importe_total_trabajos: works.reduce((sum, w) => sum + Number(w.amount), 0),
-        importe_cobrado: works.filter(w => w.is_paid || w.status === 'cobrado').reduce((sum, w) => sum + Number(w.amount), 0),
-        importe_pendiente: works.filter(w => !w.is_paid && w.status !== 'cobrado').reduce((sum, w) => sum + Number(w.amount), 0)
+        importe_cobrado: importeCobrado,
+        importe_pendiente: importePendiente,
+        anticipos_recibidos: anticipos,
+        pendiente_real: importePendiente - anticipos,
+        presupuestos_borrador: presBorrador.length,
+        presupuestos_enviados: presEnviado.length,
+        presupuestos_aceptados: presAceptado.length,
+        valor_presupuestos: presupuestos.reduce((sum, p) => sum + Number(p.total_presupuesto), 0),
+        valor_presupuestos_borrador: presBorrador.reduce((sum, p) => sum + Number(p.total_presupuesto), 0),
+        valor_presupuestos_enviados: presEnviado.reduce((sum, p) => sum + Number(p.total_presupuesto), 0),
+        valor_presupuestos_aceptados: presAceptado.reduce((sum, p) => sum + Number(p.total_presupuesto), 0)
       }
     };
   }, [user, clients, reminders, presupuestos, works]);
