@@ -114,10 +114,11 @@ export function ClientPanel({ work, allWorks, isOpen, onClose, onUpdateWork }: C
       return;
     }
 
+    // Pass workId so we can return to this work's detail view
     if (linkedPresupuesto) {
-      navigate(`/presupuesto/${linkedPresupuesto.id}`);
+      navigate(`/presupuesto/${linkedPresupuesto.id}`, { state: { returnToWorkId: work.id } });
     } else {
-      navigate('/presupuesto/nuevo', { state: { workId: work.id, client } });
+      navigate('/presupuesto/nuevo', { state: { workId: work.id, client, returnToWorkId: work.id } });
     }
     onClose();
   };
