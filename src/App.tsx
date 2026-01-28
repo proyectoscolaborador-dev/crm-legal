@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -23,14 +24,46 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Landing />} />
+            {/* Public route */}
             <Route path="/auth" element={<Auth />} />
-            <Route path="/mis-datos-empresa" element={<MisDatosEmpresa />} />
-            <Route path="/presupuesto/nuevo" element={<SimpleBudgetEditor />} />
-            <Route path="/presupuesto/:id" element={<SimpleBudgetEditor />} />
-            <Route path="/analiticas" element={<Analytics />} />
-            <Route path="/copiloto" element={<CopilotoCRM />} />
-            <Route path="/alertas" element={<AlertsPage />} />
+            
+            {/* Protected routes - require login */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Landing />
+              </ProtectedRoute>
+            } />
+            <Route path="/mis-datos-empresa" element={
+              <ProtectedRoute>
+                <MisDatosEmpresa />
+              </ProtectedRoute>
+            } />
+            <Route path="/presupuesto/nuevo" element={
+              <ProtectedRoute>
+                <SimpleBudgetEditor />
+              </ProtectedRoute>
+            } />
+            <Route path="/presupuesto/:id" element={
+              <ProtectedRoute>
+                <SimpleBudgetEditor />
+              </ProtectedRoute>
+            } />
+            <Route path="/analiticas" element={
+              <ProtectedRoute>
+                <Analytics />
+              </ProtectedRoute>
+            } />
+            <Route path="/copiloto" element={
+              <ProtectedRoute>
+                <CopilotoCRM />
+              </ProtectedRoute>
+            } />
+            <Route path="/alertas" element={
+              <ProtectedRoute>
+                <AlertsPage />
+              </ProtectedRoute>
+            } />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
