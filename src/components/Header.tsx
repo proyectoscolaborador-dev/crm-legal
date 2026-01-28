@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Plus, Upload, LogOut, Menu, Building2, UserPlus, Bot } from 'lucide-react';
+import { Plus, Upload, LogOut, Menu, Building2, UserPlus, Bot, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
@@ -8,9 +8,10 @@ interface HeaderProps {
   onImportCSV: () => void;
   onNewClient?: () => void;
   onToggleMobileMenu?: () => void;
+  onBack?: () => void;
 }
 
-export function Header({ onNewWork, onImportCSV, onNewClient, onToggleMobileMenu }: HeaderProps) {
+export function Header({ onNewWork, onImportCSV, onNewClient, onToggleMobileMenu, onBack }: HeaderProps) {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
 
@@ -18,6 +19,17 @@ export function Header({ onNewWork, onImportCSV, onNewClient, onToggleMobileMenu
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 sm:h-16 items-center justify-between px-4">
         <div className="flex items-center gap-3">
+          {onBack && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBack}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Volver</span>
+            </Button>
+          )}
           {onToggleMobileMenu && (
             <Button
               variant="ghost"
