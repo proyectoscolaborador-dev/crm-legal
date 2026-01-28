@@ -421,8 +421,20 @@ export function ChatBar() {
             <Textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                // Auto-expand chat when user starts typing
+                if (e.target.value.trim() && !isExpanded) {
+                  setIsExpanded(true);
+                }
+              }}
               onKeyDown={handleKeyDown}
+              onFocus={() => {
+                // Also expand when focusing the input
+                if (!isExpanded) {
+                  setIsExpanded(true);
+                }
+              }}
               placeholder="Ejecutar: crear cliente, recordatorio..."
               className="min-h-[44px] max-h-[80px] resize-none rounded-xl border-primary/20 focus:border-primary/40 bg-background/50 pr-12 text-base py-3"
               disabled={isLoading}

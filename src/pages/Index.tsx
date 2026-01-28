@@ -56,17 +56,17 @@ export default function Index({ onBack }: IndexProps) {
 
   // Handle navigation state to open a specific work
   useEffect(() => {
-    const state = location.state as { openWorkId?: string } | null;
+    const state = location.state as { openWorkId?: string; fromAlerts?: boolean } | null;
     if (state?.openWorkId && works.length > 0) {
       const workToOpen = works.find(w => w.id === state.openWorkId);
       if (workToOpen) {
         setSelectedWork(workToOpen);
         setIsDetailOpen(true);
-        // Clear the state to prevent reopening on subsequent renders
-        navigate('/', { replace: true, state: {} });
+        // Clear the state to prevent reopening on subsequent renders, but keep fromAlerts for back navigation
+        navigate(location.pathname, { replace: true, state: { fromAlerts: state.fromAlerts } });
       }
     }
-  }, [location.state, works, navigate]);
+  }, [location.state, works, navigate, location.pathname]);
 
   // Listen for navigate-to-tab events from Landing
   useEffect(() => {
@@ -108,8 +108,14 @@ export default function Index({ onBack }: IndexProps) {
   };
 
   const handleCloseDetail = () => {
+    const state = location.state as { fromAlerts?: boolean } | null;
     setIsDetailOpen(false);
     setSelectedWork(null);
+    
+    // If came from alerts, navigate back to alerts
+    if (state?.fromAlerts) {
+      navigate('/alertas');
+    }
   };
 
   const handleStatusChange = (workId: string, status: WorkStatus) => {
