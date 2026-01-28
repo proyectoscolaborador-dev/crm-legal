@@ -681,7 +681,7 @@ INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between gap-4 px-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-2">
@@ -693,11 +693,10 @@ INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
           <div className="flex items-center gap-2">
             {/* DEMO BUTTON - DELETE LATER */}
             <Button 
-              variant="default" 
+              variant="secondary" 
               size="sm" 
               onClick={generateDemoData}
               disabled={isGeneratingDemo}
-              className="bg-purple-600 hover:bg-purple-700"
             >
               {isGeneratingDemo ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
               PRUEBA
