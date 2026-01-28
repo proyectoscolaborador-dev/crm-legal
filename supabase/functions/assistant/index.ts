@@ -31,6 +31,18 @@ interface AssistantRequest {
       presupuestos?: unknown[];
       facturas?: unknown[];
     };
+    stats?: {
+      total_clientes?: number;
+      total_trabajos?: number;
+      total_presupuestos?: number;
+      total_recordatorios?: number;
+      recordatorios_pendientes?: number;
+      trabajos_cobrados?: number;
+      trabajos_pendientes?: number;
+      importe_total_trabajos?: number;
+      importe_cobrado?: number;
+      importe_pendiente?: number;
+    };
   };
 }
 
@@ -53,27 +65,45 @@ function buildSystemPrompt(mode: 'read' | 'operate', context: AssistantRequest['
   
   let contextInfo = `Fecha actual: ${today}\n\n`;
   
+  // Añadir estadísticas resumen primero
+  if (context.stats) {
+    contextInfo += `=== RESUMEN DEL CRM ===\n`;
+    contextInfo += `- Total clientes: ${context.stats.total_clientes || 0}\n`;
+    contextInfo += `- Total trabajos: ${context.stats.total_trabajos || 0}\n`;
+    contextInfo += `- Total presupuestos: ${context.stats.total_presupuestos || 0}\n`;
+    contextInfo += `- Total recordatorios: ${context.stats.total_recordatorios || 0} (${context.stats.recordatorios_pendientes || 0} pendientes)\n`;
+    contextInfo += `- Trabajos cobrados: ${context.stats.trabajos_cobrados || 0}\n`;
+    contextInfo += `- Trabajos pendientes: ${context.stats.trabajos_pendientes || 0}\n`;
+    contextInfo += `- Importe total: ${context.stats.importe_total_trabajos?.toLocaleString('es-ES')} €\n`;
+    contextInfo += `- Importe cobrado: ${context.stats.importe_cobrado?.toLocaleString('es-ES')} €\n`;
+    contextInfo += `- Importe pendiente: ${context.stats.importe_pendiente?.toLocaleString('es-ES')} €\n\n`;
+  }
+  
   if (context.lastRecords) {
     const { clientes, citas, presupuestos, facturas } = context.lastRecords;
     
+    // Mostrar TODOS los clientes
     if (clientes && clientes.length > 0) {
-      contextInfo += `=== CLIENTES RECIENTES (${clientes.length}) ===\n`;
-      contextInfo += JSON.stringify(clientes.slice(0, 5), null, 2) + '\n\n';
+      contextInfo += `=== TODOS LOS CLIENTES (${clientes.length}) ===\n`;
+      contextInfo += JSON.stringify(clientes, null, 2) + '\n\n';
     }
     
+    // Mostrar TODOS los recordatorios/citas
     if (citas && citas.length > 0) {
-      contextInfo += `=== CITAS/RECORDATORIOS (${citas.length}) ===\n`;
-      contextInfo += JSON.stringify(citas.slice(0, 5), null, 2) + '\n\n';
+      contextInfo += `=== TODOS LOS RECORDATORIOS/CITAS (${citas.length}) ===\n`;
+      contextInfo += JSON.stringify(citas, null, 2) + '\n\n';
     }
     
+    // Mostrar TODOS los presupuestos
     if (presupuestos && presupuestos.length > 0) {
-      contextInfo += `=== PRESUPUESTOS (${presupuestos.length}) ===\n`;
-      contextInfo += JSON.stringify(presupuestos.slice(0, 5), null, 2) + '\n\n';
+      contextInfo += `=== TODOS LOS PRESUPUESTOS (${presupuestos.length}) ===\n`;
+      contextInfo += JSON.stringify(presupuestos, null, 2) + '\n\n';
     }
     
+    // Mostrar TODOS los trabajos/facturas
     if (facturas && facturas.length > 0) {
-      contextInfo += `=== TRABAJOS/FACTURAS (${facturas.length}) ===\n`;
-      contextInfo += JSON.stringify(facturas.slice(0, 5), null, 2) + '\n\n';
+      contextInfo += `=== TODOS LOS TRABAJOS/FACTURAS (${facturas.length}) ===\n`;
+      contextInfo += JSON.stringify(facturas, null, 2) + '\n\n';
     }
   }
   
