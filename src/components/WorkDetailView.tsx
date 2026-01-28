@@ -67,6 +67,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<'finish' | 'paid' | 'invoice' | null>(null);
   const [sendConfirmDialog, setSendConfirmDialog] = useState<'whatsapp' | 'email' | null>(null);
+  const [sendInvoiceDialog, setSendInvoiceDialog] = useState<'whatsapp' | 'email' | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -263,16 +264,73 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
       downloadPdf(blob, filename);
 
       if (sendType === 'whatsapp' && client?.phone) {
-        const message = `Hola ${client.name}, te envío el presupuesto para "${work.title}".`;
+        const message = `Hola ${client.name}, te envío el presupuesto para "${work.title}". El PDF está descargado y listo para adjuntar.`;
         openWhatsApp(message);
       } else if (sendType === 'email' && client?.email) {
         openEmail();
       }
 
-      toast.success('Presupuesto enviado - Pasando a "Enviados"');
-      onClose(); // Return to main screen to see the work in new phase
+      toast.success('Presupuesto enviado - El PDF se ha descargado para adjuntar');
+      onClose();
     } catch (error) {
       toast.error('Error al enviar');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Handle sending invoice via WhatsApp/Email
+  const handleSendInvoiceWhatsApp = () => {
+    if (!linkedPresupuesto) {
+      toast.error('No hay factura disponible');
+      return;
+    }
+    setSendInvoiceDialog('whatsapp');
+  };
+
+  const handleSendInvoiceEmail = () => {
+    if (!linkedPresupuesto) {
+      toast.error('No hay factura disponible');
+      return;
+    }
+    setSendInvoiceDialog('email');
+  };
+
+  const handleConfirmSendInvoice = async () => {
+    if (!linkedPresupuesto || !empresa) return;
+    
+    const sendType = sendInvoiceDialog;
+    setSendInvoiceDialog(null);
+    setIsGeneratingPdf(true);
+    
+    try {
+      // Generate invoice PDF
+      const invoiceNumber = work.invoice_number || linkedPresupuesto.numero_presupuesto;
+      const blob = await generatePresupuestoPdf({
+        presupuesto: {
+          ...linkedPresupuesto,
+          invoice_number: invoiceNumber,
+        },
+        empresa,
+        subtotal: linkedPresupuesto.subtotal,
+        iva_importe: linkedPresupuesto.iva_importe,
+        total: linkedPresupuesto.total_presupuesto,
+        documentType: 'factura',
+      });
+
+      const filename = `Factura-${invoiceNumber.replace(/\//g, '-')}.pdf`;
+      downloadPdf(blob, filename);
+
+      if (sendType === 'whatsapp' && client?.phone) {
+        const message = `Hola ${client.name}, te envío la factura de "${work.title}" por importe de ${formatCurrency(total)}. El PDF está descargado y listo para adjuntar.`;
+        openWhatsApp(message);
+      } else if (sendType === 'email' && client?.email) {
+        openEmail();
+      }
+
+      toast.success('Factura descargada - Lista para adjuntar al mensaje');
+    } catch (error) {
+      toast.error('Error al generar la factura');
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -343,17 +401,61 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
   };
 
   const confirmIssueInvoice = async () => {
-    // Update status first
-    onStatusChange(work.id, 'factura_enviada');
-    
-    // Generate invoice number if not exists
-    if (!work.invoice_number) {
-      const invoiceNumber = `FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      updateWork.mutate({ id: work.id, invoice_number: invoiceNumber });
+    if (!linkedPresupuesto || !empresa) {
+      toast.error('Faltan datos para generar la factura');
+      return;
     }
+
+    setIsGeneratingPdf(true);
     
-    toast.success('📄 Factura emitida correctamente');
-    setConfirmDialog(null);
+    try {
+      // Generate sequential invoice number
+      const invoiceNumber = work.invoice_number || `FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+      
+      // Update work with invoice number and status
+      await updateWork.mutateAsync({ 
+        id: work.id, 
+        invoice_number: invoiceNumber 
+      });
+      
+      // Update presupuesto status to facturado
+      await updatePresupuesto.mutateAsync({
+        id: linkedPresupuesto.id,
+        estado_presupuesto: 'facturado',
+      });
+      
+      // Update work status
+      onStatusChange(work.id, 'factura_enviada');
+      
+      // Generate the invoice PDF with documentType = 'factura'
+      const blob = await generatePresupuestoPdf({
+        presupuesto: {
+          ...linkedPresupuesto,
+          invoice_number: invoiceNumber,
+        },
+        empresa,
+        subtotal: linkedPresupuesto.subtotal,
+        iva_importe: linkedPresupuesto.iva_importe,
+        total: linkedPresupuesto.total_presupuesto,
+        documentType: 'factura',
+      });
+      
+      // Download the invoice PDF automatically
+      const filename = `Factura-${invoiceNumber.replace(/\//g, '-')}.pdf`;
+      downloadPdf(blob, filename);
+      
+      // Show confetti effect
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 4000);
+      
+      toast.success('🎉 ¡Factura generada correctamente! El PDF se ha descargado.');
+      setConfirmDialog(null);
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      toast.error('Error al generar la factura');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handleRegisterPayment = () => {
@@ -683,6 +785,30 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
                 Editar Presupuesto
               </Button>
             )}
+
+            {/* Send Invoice - Invoiced phase */}
+            {phase === 'invoiced' && client?.phone && (
+              <Button 
+                className="w-full gap-2 bg-emerald-500 hover:bg-emerald-600"
+                onClick={handleSendInvoiceWhatsApp}
+                disabled={isGeneratingPdf || !linkedPresupuesto}
+              >
+                {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                Enviar Factura por WhatsApp
+              </Button>
+            )}
+
+            {phase === 'invoiced' && client?.email && (
+              <Button 
+                variant="outline"
+                className="w-full gap-2"
+                onClick={handleSendInvoiceEmail}
+                disabled={isGeneratingPdf || !linkedPresupuesto}
+              >
+                <Mail className="w-4 h-4" />
+                Enviar Factura por Email
+              </Button>
+            )}
           </div>
 
           {/* 5. Contact Section - Always visible with phone and email */}
@@ -824,7 +950,7 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Send Confirmation Dialog */}
+      {/* Send Confirmation Dialog - Budget */}
       <SendConfirmDialog
         isOpen={sendConfirmDialog !== null}
         onClose={() => setSendConfirmDialog(null)}
@@ -832,6 +958,16 @@ export function WorkDetailView({ work, onClose, onStatusChange, onMarkAsPaid, on
         type={sendConfirmDialog || 'whatsapp'}
         clientName={client?.name}
         presupuestoTitle={work.title}
+      />
+
+      {/* Send Confirmation Dialog - Invoice */}
+      <SendConfirmDialog
+        isOpen={sendInvoiceDialog !== null}
+        onClose={() => setSendInvoiceDialog(null)}
+        onConfirm={handleConfirmSendInvoice}
+        type={sendInvoiceDialog || 'whatsapp'}
+        clientName={client?.name}
+        presupuestoTitle={`Factura de ${work.title}`}
       />
 
       {/* Confetti Effect */}
