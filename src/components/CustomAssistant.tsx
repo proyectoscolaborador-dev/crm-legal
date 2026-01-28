@@ -115,39 +115,89 @@ export function CustomAssistant() {
   }, [isExpanded]);
 
   const buildContext = useCallback(() => {
+    // Enviar TODOS los datos del CRM para que el asistente tenga contexto completo
     return {
       currentUser: user ? { id: user.id, email: user.email } : undefined,
       currentRoute: location.pathname,
       lastRecords: {
-        clientes: clients.slice(0, 10).map(c => ({
+        // Clientes - enviar todos con información completa
+        clientes: clients.map(c => ({
           id: c.id,
           name: c.name,
           company: c.company,
           phone: c.phone,
-          email: c.email
+          email: c.email,
+          address: c.address,
+          city: c.city,
+          province: c.province,
+          postal_code: c.postal_code,
+          nif: c.nif,
+          notes: c.notes,
+          created_at: c.created_at
         })),
-        citas: reminders.slice(0, 10).map(r => ({
+        // Citas/Recordatorios - enviar todos
+        citas: reminders.map(r => ({
           id: r.id,
           title: r.title,
+          description: r.description,
           reminder_date: r.reminder_date,
+          reminder_time: r.reminder_time,
           reminder_type: r.reminder_type,
-          is_completed: r.is_completed
+          is_completed: r.is_completed,
+          work_id: r.work_id,
+          created_at: r.created_at
         })),
-        presupuestos: presupuestos.slice(0, 10).map(p => ({
+        // Presupuestos - enviar todos con información completa
+        presupuestos: presupuestos.map(p => ({
           id: p.id,
           numero_presupuesto: p.numero_presupuesto,
           cliente_nombre: p.cliente_nombre,
+          cliente_email: p.cliente_email,
+          cliente_telefono: p.cliente_telefono,
           obra_titulo: p.obra_titulo,
+          descripcion_trabajo_larga: p.descripcion_trabajo_larga,
+          subtotal: p.subtotal,
+          iva_porcentaje: p.iva_porcentaje,
+          iva_importe: p.iva_importe,
           total_presupuesto: p.total_presupuesto,
-          estado_presupuesto: p.estado_presupuesto
+          fecha_presupuesto: p.fecha_presupuesto,
+          validez_dias: p.validez_dias,
+          estado_presupuesto: p.estado_presupuesto,
+          work_id: p.work_id,
+          created_at: p.created_at
         })),
-        facturas: works.slice(0, 10).map(w => ({
+        // Trabajos/Facturas - enviar todos con información completa
+        facturas: works.map(w => ({
           id: w.id,
           title: w.title,
+          description: w.description,
           amount: w.amount,
           status: w.status,
-          is_paid: w.is_paid
+          is_paid: w.is_paid,
+          advance_payments: w.advance_payments,
+          due_date: w.due_date,
+          invoice_number: w.invoice_number,
+          budget_sent_at: w.budget_sent_at,
+          budget_responded_at: w.budget_responded_at,
+          client_id: w.client_id,
+          client_name: w.client?.name,
+          client_email: w.client?.email,
+          client_phone: w.client?.phone,
+          created_at: w.created_at
         }))
+      },
+      // Estadísticas resumen
+      stats: {
+        total_clientes: clients.length,
+        total_trabajos: works.length,
+        total_presupuestos: presupuestos.length,
+        total_recordatorios: reminders.length,
+        recordatorios_pendientes: reminders.filter(r => !r.is_completed).length,
+        trabajos_cobrados: works.filter(w => w.is_paid || w.status === 'cobrado').length,
+        trabajos_pendientes: works.filter(w => !w.is_paid && w.status !== 'cobrado').length,
+        importe_total_trabajos: works.reduce((sum, w) => sum + Number(w.amount), 0),
+        importe_cobrado: works.filter(w => w.is_paid || w.status === 'cobrado').reduce((sum, w) => sum + Number(w.amount), 0),
+        importe_pendiente: works.filter(w => !w.is_paid && w.status !== 'cobrado').reduce((sum, w) => sum + Number(w.amount), 0)
       }
     };
   }, [user, location.pathname, clients, reminders, presupuestos, works]);
