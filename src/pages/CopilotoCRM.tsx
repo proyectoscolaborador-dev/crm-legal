@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Send, Loader2, Bot, User, Zap, Eye, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Bot, User, Zap, Eye, CheckCircle2, XCircle, Trash2, Mic, MicOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
@@ -69,9 +69,53 @@ export default function CopilotoCRM() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<AssistantMode>('read');
+  const [isListening, setIsListening] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Speech Recognition Setup
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'es-ES';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev + ' ' + transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = () => {
+        setIsListening(false);
+        toast.error('Error en reconocimiento de voz');
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
+
+  const toggleVoice = () => {
+    if (!recognitionRef.current) {
+      toast.error('Tu navegador no soporta reconocimiento de voz');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+      toast.info('🎤 Escuchando... habla ahora');
+    }
+  };
 
   // Force read mode if user is not authenticated
   useEffect(() => {
@@ -472,14 +516,23 @@ export default function CopilotoCRM() {
       <div className="flex-shrink-0 border-t border-border bg-card/50 backdrop-blur-sm">
         <div className="container max-w-3xl mx-auto px-4 py-4">
           <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={toggleVoice}
+              className={`h-12 w-12 flex-shrink-0 rounded-xl ${isListening ? 'bg-red-500/20 text-red-500 animate-pulse' : 'hover:bg-primary/10'}`}
+            >
+              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </Button>
             <Input
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={mode === 'read' ? 'Pregunta sobre tus datos...' : 'Pide una acción sobre tus datos...'}
+              placeholder={isListening ? 'Escuchando...' : (mode === 'read' ? 'Pregunta sobre tus datos...' : 'Pide una acción...')}
               className="flex-1 bg-muted border-0 focus-visible:ring-1 h-12 text-base"
-              disabled={isLoading}
+              disabled={isLoading || isListening}
             />
             <Button
               onClick={sendMessage}
