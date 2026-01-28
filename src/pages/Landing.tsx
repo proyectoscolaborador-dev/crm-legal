@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, HardHat, UserPlus, Briefcase, CalendarDays, Sparkles, ArrowRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -16,6 +16,8 @@ import { ObraAssistant } from '@/components/ObraAssistant';
 
 type ViewMode = 'selection' | 'casa' | 'obra';
 
+const VIEWMODE_STORAGE_KEY = 'crm-viewmode';
+
 export default function Landing() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,15 +30,28 @@ export default function Landing() {
   } | null;
   
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    // Auto-enter casa mode if specified or if opening a work from alerts
+    // Priority 1: Navigation state
     if (initialState?.enterMode === 'casa' || initialState?.openWorkId) {
       return 'casa';
     }
     if (initialState?.enterMode === 'obra') {
       return 'obra';
     }
+    // Priority 2: Stored preference (so navigate(-1) remembers where user was)
+    const stored = localStorage.getItem(VIEWMODE_STORAGE_KEY);
+    if (stored === 'casa' || stored === 'obra') {
+      return stored;
+    }
+    // Default: selection screen
     return 'selection';
   });
+
+  // Persist viewMode to localStorage whenever it changes
+  useEffect(() => {
+    if (viewMode !== 'selection') {
+      localStorage.setItem(VIEWMODE_STORAGE_KEY, viewMode);
+    }
+  }, [viewMode]);
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
   const [isNewWorkOpen, setIsNewWorkOpen] = useState(false);
   
