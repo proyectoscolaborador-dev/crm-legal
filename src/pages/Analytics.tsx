@@ -182,13 +182,15 @@ export default function Analytics() {
 
   // Generate demo data
   const generateDemoData = async () => {
-    if (!user) return;
+    const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+    const effectiveUserId = user?.id || DEFAULT_USER_ID;
+    
     setIsGeneratingDemo(true);
     
     try {
       const clientInserts = DEMO_CLIENTS.map(c => ({
         ...c,
-        user_id: user.id,
+        user_id: effectiveUserId,
         address: 'Calle Principal 123',
         city: 'Madrid',
         province: 'Madrid',
@@ -220,7 +222,7 @@ export default function Analytics() {
         const amount = workTemplate.amount * (0.8 + Math.random() * 0.4);
         
         const work: any = {
-          user_id: user.id,
+          user_id: effectiveUserId,
           client_id: client.id,
           title: `${workTemplate.title} - ${client.name.split(' ')[0]}`,
           description: workTemplate.description,
@@ -254,7 +256,7 @@ export default function Analytics() {
         const year = new Date(work.created_at).getFullYear();
         
         return {
-          user_id: user.id,
+          user_id: effectiveUserId,
           work_id: work.id,
           numero_presupuesto: `P-${year}-${String(idx + 1).padStart(4, '0')}`,
           cliente_nombre: client.name,
