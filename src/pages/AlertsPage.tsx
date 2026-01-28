@@ -286,7 +286,8 @@ export default function AlertsPage() {
 
   const handleAlertClick = (alert: Alert) => {
     if (alert.work) {
-      navigate('/', { state: { openWorkId: alert.work.id } });
+      // Navigate with state - Index will handle opening the work detail
+      navigate('/', { state: { openWorkId: alert.work.id, fromAlerts: true } });
     }
   };
 
@@ -402,7 +403,7 @@ export default function AlertsPage() {
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="container px-4 py-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="shrink-0">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1">
