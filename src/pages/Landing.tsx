@@ -147,7 +147,13 @@ export default function Landing() {
 
               <Card 
                 className="p-6 bg-gradient-to-br from-warning/10 via-card to-card border-warning/20 cursor-pointer hover:border-warning/40 transition-all group"
-                onClick={() => navigate('/alertas')}
+                onClick={() => {
+                  setViewMode('casa');
+                  // Small delay to let component mount, then navigate to calendar tab
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: 'calendar' }));
+                  }, 100);
+                }}
               >
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-warning/20 flex items-center justify-center group-hover:scale-110 transition-transform">
