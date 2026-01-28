@@ -68,6 +68,18 @@ export default function Index({ onBack }: IndexProps) {
     }
   }, [location.state, works, navigate]);
 
+  // Listen for navigate-to-tab events from Landing
+  useEffect(() => {
+    const handleNavigateToTab = (event: CustomEvent<string>) => {
+      setActiveTab(event.detail);
+    };
+    
+    window.addEventListener('navigate-to-tab', handleNavigateToTab as EventListener);
+    return () => {
+      window.removeEventListener('navigate-to-tab', handleNavigateToTab as EventListener);
+    };
+  }, []);
+
   if (authLoading || empresaLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
