@@ -20,11 +20,23 @@ export default function Landing() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Check if we're coming from alerts with a work to open - auto-enter 'casa' mode
-  const initialState = location.state as { openWorkId?: string; fromAlerts?: boolean } | null;
-  const [viewMode, setViewMode] = useState<ViewMode>(
-    initialState?.openWorkId ? 'casa' : 'selection'
-  );
+  // Check navigation state to auto-enter 'casa' mode
+  const initialState = location.state as { 
+    openWorkId?: string; 
+    fromAlerts?: boolean;
+    enterMode?: 'casa' | 'obra';
+  } | null;
+  
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    // Auto-enter casa mode if specified or if opening a work from alerts
+    if (initialState?.enterMode === 'casa' || initialState?.openWorkId) {
+      return 'casa';
+    }
+    if (initialState?.enterMode === 'obra') {
+      return 'obra';
+    }
+    return 'selection';
+  });
   const [isNewClientOpen, setIsNewClientOpen] = useState(false);
   const [isNewWorkOpen, setIsNewWorkOpen] = useState(false);
   

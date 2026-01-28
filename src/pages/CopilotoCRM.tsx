@@ -337,7 +337,7 @@ export default function CopilotoCRM() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/', { state: { enterMode: 'casa' } })}
             className="transition-transform active:scale-90"
           >
             <ArrowLeft className="w-5 h-5" />
