@@ -74,7 +74,8 @@ export default function MisDatosEmpresa() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await saveEmpresa.mutateAsync(formData);
-    navigate(returnTo);
+    // Always navigate to dashboard in casa mode
+    navigate('/', { state: { enterMode: 'casa' } });
   };
 
   const isFormValid = 
@@ -91,7 +92,7 @@ export default function MisDatosEmpresa() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center gap-4 px-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(returnTo)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/', { state: { enterMode: 'casa' } })}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2">

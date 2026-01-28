@@ -651,7 +651,7 @@ INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
       
       toast.success('Datos eliminados');
       setResetDialogOpen(false);
-      navigate('/');
+      navigate('/', { state: { enterMode: 'casa' } });
     } catch (error) {
       toast.error('Error al resetear');
     } finally {
@@ -681,7 +681,7 @@ INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between gap-4 px-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/', { state: { enterMode: 'casa' } })}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-2">

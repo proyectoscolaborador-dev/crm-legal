@@ -263,7 +263,7 @@ export default function SimpleBudgetEditor() {
       }
       
       toast.success('¡Aceptado! Pasando a Obra...');
-      navigate('/');
+      navigate('/', { state: { enterMode: 'casa' } });
     } catch (err) {
       console.error('Error accepting budget:', err);
       toast.error('Error al aceptar el presupuesto');
@@ -287,7 +287,7 @@ export default function SimpleBudgetEditor() {
       
       toast.success('Presupuesto marcado como rechazado');
       setRejectDialogOpen(false);
-      navigate('/');
+      navigate('/', { state: { enterMode: 'casa' } });
     } catch (err) {
       console.error('Error archiving rejected:', err);
       toast.error('Error al archivar el presupuesto');
@@ -304,7 +304,7 @@ export default function SimpleBudgetEditor() {
       }
       toast.success('Trabajo eliminado correctamente');
       setRejectDialogOpen(false);
-      navigate('/');
+      navigate('/', { state: { enterMode: 'casa' } });
     } catch (err) {
       console.error('Error deleting work:', err);
       toast.error('Error al eliminar el trabajo');
@@ -415,7 +415,7 @@ export default function SimpleBudgetEditor() {
         duration: 5000,
       });
       setInvoiceDialogOpen(false);
-      navigate('/');
+      navigate('/', { state: { enterMode: 'casa' } });
     } catch (err) {
       console.error('Error issuing invoice:', err);
       toast.error('Error al emitir la factura');
@@ -541,7 +541,7 @@ export default function SimpleBudgetEditor() {
         await createPresupuesto.mutateAsync(formData);
         toast.success('Presupuesto creado');
       }
-      navigate('/');
+      navigate('/', { state: { enterMode: 'casa' } });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       toast.error(`Error al guardar: ${errorMessage}`);
@@ -568,7 +568,7 @@ export default function SimpleBudgetEditor() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="transition-transform active:scale-90">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/', { state: { enterMode: 'casa' } })} className="transition-transform active:scale-90">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-2">
