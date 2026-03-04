@@ -67,8 +67,16 @@ export default function MisDatosEmpresa() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const url = await uploadLogo.mutateAsync(file);
-    setFormData(prev => ({ ...prev, empresa_logo_url: url }));
+    try {
+      const url = await uploadLogo.mutateAsync(file);
+      if (url) {
+        setFormData(prev => ({ ...prev, empresa_logo_url: url }));
+      }
+    } catch (err) {
+      console.error('Logo upload failed:', err);
+    }
+    // Reset input so same file can be re-selected
+    e.target.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
