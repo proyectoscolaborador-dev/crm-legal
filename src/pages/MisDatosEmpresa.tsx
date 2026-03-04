@@ -123,28 +123,24 @@ export default function MisDatosEmpresa() {
                       className="h-16 w-auto object-contain rounded border border-border"
                     />
                   )}
-                  <div className="relative">
-                    <Input
+                  <label
+                    htmlFor="logo-upload"
+                    className={`inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer ${uploadLogo.isPending ? 'pointer-events-none opacity-50' : ''}`}
+                  >
+                    <input
                       type="file"
                       accept="image/*"
                       onChange={handleLogoUpload}
-                      className="hidden"
+                      className="sr-only"
                       id="logo-upload"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => document.getElementById('logo-upload')?.click()}
-                      disabled={uploadLogo.isPending}
-                    >
-                      {uploadLogo.isPending ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Upload className="w-4 h-4 mr-2" />
-                      )}
-                      {formData.empresa_logo_url ? 'Cambiar logo' : 'Subir logo'}
-                    </Button>
-                  </div>
+                    {uploadLogo.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {formData.empresa_logo_url ? 'Cambiar logo' : 'Subir logo'}
+                  </label>
                 </div>
               </div>
 
