@@ -27,7 +27,6 @@ export function useEmpresa() {
 
   const saveEmpresa = useMutation({
     mutationFn: async (data: EmpresaFormData) => {
-      // Check if empresa exists
       const { data: existing } = await supabase
         .from('empresa_usuario')
         .select('id')
@@ -35,7 +34,6 @@ export function useEmpresa() {
         .maybeSingle();
 
       if (existing) {
-        // Update
         const { data: updated, error } = await supabase
           .from('empresa_usuario')
           .update(data)
@@ -46,7 +44,6 @@ export function useEmpresa() {
         if (error) throw error;
         return updated;
       } else {
-        // Insert
         const { data: created, error } = await supabase
           .from('empresa_usuario')
           .insert({ ...data, user_id: effectiveUserId })
@@ -66,10 +63,28 @@ export function useEmpresa() {
     },
   });
 
+  const deleteEmpresa = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('empresa_usuario')
+        .delete()
+        .eq('user_id', effectiveUserId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['empresa'] });
+      toast.success('Datos de empresa eliminados');
+    },
+    onError: (error) => {
+      toast.error('Error al eliminar: ' + error.message);
+    },
+  });
+
   const uploadLogo = useMutation({
     mutationFn: async (file: File) => {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${effectiveUserId}/logo.${fileExt}`;
+      const fileName = `${effectiveUserId}/logo_${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('presupuestos-pdf')
@@ -83,12 +98,14 @@ export function useEmpresa() {
       
       return publicUrl;
     },
+    onSuccess: () => {
+      toast.success('Logo subido correctamente');
+    },
     onError: (error) => {
       toast.error('Error al subir logo: ' + error.message);
     },
   });
 
-  // Check if empresa data is complete
   const isEmpresaComplete = empresa && 
     empresa.empresa_nombre &&
     empresa.empresa_cif &&
@@ -104,6 +121,7 @@ export function useEmpresa() {
     isLoading,
     error,
     saveEmpresa,
+    deleteEmpresa,
     uploadLogo,
     isEmpresaComplete: !!isEmpresaComplete,
   };

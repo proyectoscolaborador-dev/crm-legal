@@ -7,14 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Building2, Upload, Loader2, Save } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { ArrowLeft, Building2, Upload, Loader2, Save, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function MisDatosEmpresa() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { empresa, isLoading, saveEmpresa, uploadLogo } = useEmpresa();
-  
-  const returnTo = (location.state as { returnTo?: string })?.returnTo || '/';
+  const { empresa, isLoading, saveEmpresa, deleteEmpresa, uploadLogo } = useEmpresa();
 
   const [formData, setFormData] = useState<EmpresaFormData>({
     empresa_nombre: '',
@@ -68,6 +68,7 @@ export default function MisDatosEmpresa() {
     if (!file) return;
 
     try {
+      toast.info('Subiendo logo...');
       const url = await uploadLogo.mutateAsync(file);
       if (url) {
         setFormData(prev => ({ ...prev, empresa_logo_url: url }));
@@ -79,11 +80,23 @@ export default function MisDatosEmpresa() {
     e.target.value = '';
   };
 
+  const handleRemoveLogo = () => {
+    setFormData(prev => ({ ...prev, empresa_logo_url: '' }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await saveEmpresa.mutateAsync(formData);
-    // Always navigate to dashboard in casa mode
     navigate('/', { state: { enterMode: 'casa' } });
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteEmpresa.mutateAsync();
+      navigate('/', { state: { enterMode: 'casa' } });
+    } catch (err) {
+      console.error('Delete failed:', err);
+    }
   };
 
   const isFormValid = 
@@ -110,7 +123,7 @@ export default function MisDatosEmpresa() {
         </div>
       </header>
 
-      <main className="container max-w-2xl px-4 py-6">
+      <main className="container max-w-2xl px-4 py-6 space-y-6">
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle>Información de tu empresa</CardTitle>
@@ -125,11 +138,20 @@ export default function MisDatosEmpresa() {
                 <Label>Logo de la empresa</Label>
                 <div className="flex items-center gap-4">
                   {formData.empresa_logo_url && (
-                    <img 
-                      src={formData.empresa_logo_url} 
-                      alt="Logo" 
-                      className="h-16 w-auto object-contain rounded border border-border"
-                    />
+                    <div className="relative">
+                      <img 
+                        src={formData.empresa_logo_url} 
+                        alt="Logo" 
+                        className="h-16 w-auto object-contain rounded border border-border"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
                   )}
                   <label
                     htmlFor="logo-upload"
@@ -147,7 +169,7 @@ export default function MisDatosEmpresa() {
                     ) : (
                       <Upload className="w-4 h-4" />
                     )}
-                    {formData.empresa_logo_url ? 'Cambiar logo' : 'Subir logo'}
+                    {uploadLogo.isPending ? 'Subiendo...' : formData.empresa_logo_url ? 'Cambiar logo' : 'Subir logo'}
                   </label>
                 </div>
               </div>
@@ -156,40 +178,15 @@ export default function MisDatosEmpresa() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="empresa_nombre">Nombre comercial *</Label>
-                  <Input
-                    id="empresa_nombre"
-                    name="empresa_nombre"
-                    value={formData.empresa_nombre}
-                    onChange={handleChange}
-                    placeholder="Mi Empresa S.L."
-                    required
-                    className="bg-muted border-border"
-                  />
+                  <Input id="empresa_nombre" name="empresa_nombre" value={formData.empresa_nombre} onChange={handleChange} placeholder="Mi Empresa S.L." required className="bg-muted border-border" />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="empresa_razon_social">Razón social</Label>
-                  <Input
-                    id="empresa_razon_social"
-                    name="empresa_razon_social"
-                    value={formData.empresa_razon_social || ''}
-                    onChange={handleChange}
-                    placeholder="Mi Empresa Sociedad Limitada"
-                    className="bg-muted border-border"
-                  />
+                  <Input id="empresa_razon_social" name="empresa_razon_social" value={formData.empresa_razon_social || ''} onChange={handleChange} placeholder="Mi Empresa Sociedad Limitada" className="bg-muted border-border" />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="empresa_cif">CIF/NIF *</Label>
-                  <Input
-                    id="empresa_cif"
-                    name="empresa_cif"
-                    value={formData.empresa_cif}
-                    onChange={handleChange}
-                    placeholder="B12345678"
-                    required
-                    className="bg-muted border-border"
-                  />
+                  <Input id="empresa_cif" name="empresa_cif" value={formData.empresa_cif} onChange={handleChange} placeholder="B12345678" required className="bg-muted border-border" />
                 </div>
               </div>
 
@@ -197,54 +194,19 @@ export default function MisDatosEmpresa() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="empresa_direccion">Dirección *</Label>
-                  <Input
-                    id="empresa_direccion"
-                    name="empresa_direccion"
-                    value={formData.empresa_direccion}
-                    onChange={handleChange}
-                    placeholder="Calle Principal, 123"
-                    required
-                    className="bg-muted border-border"
-                  />
+                  <Input id="empresa_direccion" name="empresa_direccion" value={formData.empresa_direccion} onChange={handleChange} placeholder="Calle Principal, 123" required className="bg-muted border-border" />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="empresa_cp">Código Postal *</Label>
-                  <Input
-                    id="empresa_cp"
-                    name="empresa_cp"
-                    value={formData.empresa_cp}
-                    onChange={handleChange}
-                    placeholder="28001"
-                    required
-                    className="bg-muted border-border"
-                  />
+                  <Input id="empresa_cp" name="empresa_cp" value={formData.empresa_cp} onChange={handleChange} placeholder="28001" required className="bg-muted border-border" />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="empresa_ciudad">Ciudad *</Label>
-                  <Input
-                    id="empresa_ciudad"
-                    name="empresa_ciudad"
-                    value={formData.empresa_ciudad}
-                    onChange={handleChange}
-                    placeholder="Madrid"
-                    required
-                    className="bg-muted border-border"
-                  />
+                  <Input id="empresa_ciudad" name="empresa_ciudad" value={formData.empresa_ciudad} onChange={handleChange} placeholder="Madrid" required className="bg-muted border-border" />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="empresa_provincia">Provincia *</Label>
-                  <Input
-                    id="empresa_provincia"
-                    name="empresa_provincia"
-                    value={formData.empresa_provincia}
-                    onChange={handleChange}
-                    placeholder="Madrid"
-                    required
-                    className="bg-muted border-border"
-                  />
+                  <Input id="empresa_provincia" name="empresa_provincia" value={formData.empresa_provincia} onChange={handleChange} placeholder="Madrid" required className="bg-muted border-border" />
                 </div>
               </div>
 
@@ -252,56 +214,22 @@ export default function MisDatosEmpresa() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="empresa_telefono">Teléfono *</Label>
-                  <Input
-                    id="empresa_telefono"
-                    name="empresa_telefono"
-                    value={formData.empresa_telefono}
-                    onChange={handleChange}
-                    placeholder="+34 600 000 000"
-                    required
-                    className="bg-muted border-border"
-                  />
+                  <Input id="empresa_telefono" name="empresa_telefono" value={formData.empresa_telefono} onChange={handleChange} placeholder="+34 600 000 000" required className="bg-muted border-border" />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="empresa_email">Email *</Label>
-                  <Input
-                    id="empresa_email"
-                    name="empresa_email"
-                    type="email"
-                    value={formData.empresa_email}
-                    onChange={handleChange}
-                    placeholder="info@miempresa.com"
-                    required
-                    className="bg-muted border-border"
-                  />
+                  <Input id="empresa_email" name="empresa_email" type="email" value={formData.empresa_email} onChange={handleChange} placeholder="info@miempresa.com" required className="bg-muted border-border" />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="empresa_web">Sitio web</Label>
-                  <Input
-                    id="empresa_web"
-                    name="empresa_web"
-                    value={formData.empresa_web || ''}
-                    onChange={handleChange}
-                    placeholder="www.miempresa.com"
-                    className="bg-muted border-border"
-                  />
+                  <Input id="empresa_web" name="empresa_web" value={formData.empresa_web || ''} onChange={handleChange} placeholder="www.miempresa.com" className="bg-muted border-border" />
                 </div>
               </div>
 
               {/* Conditions */}
               <div className="space-y-2">
                 <Label htmlFor="condiciones_generales">Condiciones generales</Label>
-                <Textarea
-                  id="condiciones_generales"
-                  name="condiciones_generales"
-                  value={formData.condiciones_generales || ''}
-                  onChange={handleChange}
-                  placeholder="Texto que aparecerá al pie de tus presupuestos..."
-                  rows={4}
-                  className="bg-muted border-border resize-none"
-                />
+                <Textarea id="condiciones_generales" name="condiciones_generales" value={formData.condiciones_generales || ''} onChange={handleChange} placeholder="Texto que aparecerá al pie de tus presupuestos..." rows={4} className="bg-muted border-border resize-none" />
               </div>
 
               <Button 
@@ -310,20 +238,50 @@ export default function MisDatosEmpresa() {
                 disabled={!isFormValid || saveEmpresa.isPending}
               >
                 {saveEmpresa.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Guardando...
-                  </>
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Guardando...</>
                 ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Guardar datos
-                  </>
+                  <><Save className="w-4 h-4 mr-2" />Guardar datos</>
                 )}
               </Button>
             </form>
           </CardContent>
         </Card>
+
+        {/* Delete section */}
+        {empresa && (
+          <Card className="bg-card border-destructive/30">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-destructive">Zona peligrosa</p>
+                  <p className="text-sm text-muted-foreground">Eliminar todos los datos de tu empresa. Esta acción no se puede deshacer.</p>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" disabled={deleteEmpresa.isPending}>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Eliminar
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar datos de empresa?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se eliminarán todos los datos de tu empresa. Los presupuestos y facturas ya generados no se verán afectados.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Sí, eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );
