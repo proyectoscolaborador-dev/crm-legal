@@ -90,43 +90,76 @@ export default function Auth() {
           <p className="text-muted-foreground mt-2">Gestión empresarial inteligente</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="tu@email.com"
-              className="bg-muted border-border"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Contraseña</Label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="bg-muted border-border"
-              required
-              minLength={6}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Cargando...
-              </>
-            ) : isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
-          </Button>
-        </form>
+        {showForgot ? (
+          <form onSubmit={handleForgotPassword} className="glass-card p-6 space-y-4">
+            <p className="text-sm text-muted-foreground">Introduce tu email y te enviaremos un enlace para restablecer tu contraseña.</p>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="tu@email.com"
+                className="bg-muted border-border"
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={sendingReset}>
+              {sendingReset ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Enviando...
+                </>
+              ) : 'Enviar enlace de recuperación'}
+            </Button>
+            <button type="button" onClick={() => setShowForgot(false)} className="text-sm text-primary hover:underline w-full text-center">
+              Volver al inicio de sesión
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@email.com"
+                className="bg-muted border-border"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Contraseña</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="bg-muted border-border"
+                required
+                minLength={6}
+              />
+            </div>
+            {isLogin && (
+              <button type="button" onClick={() => setShowForgot(true)} className="text-sm text-primary hover:underline">
+                ¿Olvidaste tu contraseña?
+              </button>
+            )}
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Cargando...
+                </>
+              ) : isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+            </Button>
+          </form>
+        )}
 
         <p className="text-center text-sm text-muted-foreground">
           {isLogin ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}{' '}
-          <button onClick={() => setIsLogin(!isLogin)} className="text-primary hover:underline">
+          <button onClick={() => { setIsLogin(!isLogin); setShowForgot(false); }} className="text-primary hover:underline">
             {isLogin ? 'Regístrate' : 'Inicia sesión'}
           </button>
         </p>
