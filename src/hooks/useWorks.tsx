@@ -15,7 +15,7 @@ export function useWorks() {
   const { data: works = [], isLoading } = useQuery({
     queryKey: ['works', effectiveUserId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let result = await supabase
         .from('works')
         .select(`
           *,
@@ -24,9 +24,20 @@ export function useWorks() {
         .eq('user_id', effectiveUserId)
         .order('position', { ascending: true });
       
-      if (error) throw error;
+      if (result.error?.message?.includes('user_id') || result.error?.code === '42703') {
+        console.warn('user_id column not found on works, querying without filter');
+        result = await supabase
+          .from('works')
+          .select(`
+            *,
+            client:clientes(*)
+          `)
+          .order('position', { ascending: true });
+      }
+
+      if (result.error) throw result.error;
       
-      return (data || []).map(work => ({
+      return (result.data || []).map(work => ({
         ...work,
         images: Array.isArray(work.images) ? work.images : [],
         advance_payments: work.advance_payments || 0,

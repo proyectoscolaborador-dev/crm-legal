@@ -14,14 +14,22 @@ export function useEmpresa() {
   const { data: empresa, isLoading, error } = useQuery({
     queryKey: ['empresa', effectiveUserId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let result = await supabase
         .from('empresa_usuario')
         .select('*')
         .eq('user_id', effectiveUserId)
         .maybeSingle();
       
-      if (error) throw error;
-      return data as EmpresaUsuario | null;
+      if (result.error?.message?.includes('user_id') || result.error?.code === '42703') {
+        console.warn('user_id column not found on empresa_usuario, querying without filter');
+        result = await supabase
+          .from('empresa_usuario')
+          .select('*')
+          .maybeSingle();
+      }
+
+      if (result.error) throw result.error;
+      return result.data as EmpresaUsuario | null;
     },
   });
 

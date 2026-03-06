@@ -160,24 +160,32 @@ export function CopilotoChat({ className = '' }: CopilotoChatProps) {
   }, [isListening]);
 
   const buildSystemInstructions = useCallback(async () => {
-    if (!user) return '';
+    if (!user) return 'Eres Copiloto. Responde en 1-2 frases máximo.';
 
     try {
-      const [clientsRes, worksRes, remindersRes, presupuestosRes] = await Promise.all([
-        supabase.from('clientes').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
-        supabase.from('works').select('*, client:clientes(name, company)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
-        supabase.from('reminders').select('*').eq('user_id', user.id).eq('is_completed', false).order('reminder_date', { ascending: true }).limit(10),
-        supabase.from('presupuestos').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+      // Helper to query with user_id fallback
+      const safeQuery = async (table: string, select: string, extra?: (q: any) => any) => {
+        let q = supabase.from(table).select(select).eq('user_id', user.id);
+        if (extra) q = extra(q);
+        let result = await q.limit(10);
+        if (result.error?.message?.includes('user_id') || result.error?.code === '42703') {
+          let q2 = supabase.from(table).select(select);
+          if (extra) q2 = extra(q2);
+          result = await q2.limit(10);
+        }
+        return result.data || [];
+      };
+
+      const [clients, works, reminders, presupuestos] = await Promise.all([
+        safeQuery('clientes', '*', q => q.order('created_at', { ascending: false })),
+        safeQuery('works', '*, client:clientes(name, company)', q => q.order('created_at', { ascending: false })),
+        safeQuery('reminders', '*', q => q.eq('is_completed', false).order('reminder_date', { ascending: true })),
+        safeQuery('presupuestos', '*', q => q.order('created_at', { ascending: false })),
       ]);
 
-      const clients = clientsRes.data || [];
-      const works = worksRes.data || [];
-      const reminders = remindersRes.data || [];
-      const presupuestos = presupuestosRes.data || [];
-
       const totalPendiente = works
-        .filter(w => w.status !== 'cobrado')
-        .reduce((sum, w) => sum + (Number(w.amount) - Number(w.advance_payments)), 0);
+        .filter((w: any) => w.status !== 'cobrado')
+        .reduce((sum: number, w: any) => sum + (Number(w.amount || 0) - Number(w.advance_payments || 0)), 0);
 
       const today = new Date().toISOString().split('T')[0];
 
@@ -189,8 +197,8 @@ ACCIONES:
 - Crear recordatorio: [CREAR_RECORDATORIO: título | YYYY-MM-DD | descripción]
 
 DATOS:
-- Clientes: ${clients.slice(0, 5).map(c => c.name).join(', ') || 'Ninguno'}
-- Trabajos: ${works.slice(0, 3).map(w => w.title).join(', ') || 'Ninguno'}
+- Clientes: ${clients.slice(0, 5).map((c: any) => c.name).join(', ') || 'Ninguno'}
+- Trabajos: ${works.slice(0, 3).map((w: any) => w.title).join(', ') || 'Ninguno'}
 - Pendiente cobro: ${totalPendiente.toFixed(0)}€
 - Recordatorios: ${reminders.length}
 
