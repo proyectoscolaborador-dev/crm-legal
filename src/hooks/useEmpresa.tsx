@@ -29,14 +29,13 @@ export function useEmpresa() {
       const { data: existing } = await supabase
         .from('empresa_usuario')
         .select('id')
-        .eq('user_id', effectiveUserId)
         .maybeSingle();
 
       if (existing) {
         const { data: updated, error } = await supabase
           .from('empresa_usuario')
           .update(data)
-          .eq('user_id', effectiveUserId)
+          .eq('id', existing.id)
           .select()
           .single();
         
