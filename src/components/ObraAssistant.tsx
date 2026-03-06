@@ -15,7 +15,7 @@ import {
   MicOff,
   CalendarPlus
 } from 'lucide-react';
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/externalSupabase';
+import { supabase } from '@/lib/externalSupabase';
 import { useClients } from '@/hooks/useClients';
 import { useWorks } from '@/hooks/useWorks';
 import { useReminders } from '@/hooks/useReminders';
@@ -185,14 +185,26 @@ export function ObraAssistant() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/assistant`, {
+      const context = buildContext();
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assistant`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'x-region': 'eu-central-1',
         },
-        body: JSON.stringify({ message: userMessage.content }),
+        body: JSON.stringify({
+          mode: 'operate',
+          messages: [
+            {
+              role: 'user',
+              content: userMessage.content,
+            },
+          ],
+          context,
+        }),
       });
 
       if (!response.ok) throw new Error(`Error ${response.status}`);

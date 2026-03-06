@@ -65,7 +65,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/externalSupabase';
+import { supabase } from '@/lib/externalSupabase';
 import { format, subDays, isAfter, isBefore, parseISO, addDays, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useQueryClient } from '@tanstack/react-query';
@@ -530,14 +530,34 @@ export default function Analytics() {
     setIsAiLoading(true);
     
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/assistant`, {
+      const context = {
+        currentRoute: '/analytics',
+        stats: {
+          total_clientes: clients.length,
+          total_trabajos: works.length,
+          total_presupuestos: presupuestos.length,
+          total_recordatorios: reminders.length,
+        },
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assistant`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'x-region': 'eu-central-1',
         },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({
+          mode: 'read',
+          messages: [
+            {
+              role: 'user',
+              content: userMessage,
+            },
+          ],
+          context,
+        }),
       });
 
       if (!response.ok) throw new Error(`Error ${response.status}`);

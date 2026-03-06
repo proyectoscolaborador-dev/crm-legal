@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Loader2, Bot, Mic, MicOff, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/externalSupabase';
+import { supabase } from '@/lib/externalSupabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useReminders } from '@/hooks/useReminders';
 import ReactMarkdown from 'react-markdown';
@@ -200,14 +200,24 @@ export function CopilotoChat({ className = '' }: CopilotoChatProps) {
     setIsExpanded(true);
 
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/assistant`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assistant`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'x-region': 'eu-central-1',
         },
-        body: JSON.stringify({ message: messageToSend }),
+        body: JSON.stringify({
+          mode: 'read',
+          messages: [
+            {
+              role: 'user',
+              content: messageToSend,
+            },
+          ],
+          context: {},
+        }),
       });
 
       if (!response.ok) {
