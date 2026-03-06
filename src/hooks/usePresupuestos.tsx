@@ -22,8 +22,7 @@ export function usePresupuestos() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('presupuestos')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
 
       if (error) throw error;
       return (data || []).map(parsePresupuesto);

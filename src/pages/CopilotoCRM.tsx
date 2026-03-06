@@ -246,30 +246,12 @@ export default function CopilotoCRM() {
     setIsLoading(true);
 
     try {
-      const context = buildContext();
-      const allMessages = [...messages, userMessage].map(m => ({
-        role: m.role,
-        content: m.content
-      }));
-
-      // Force 'read' mode if user is not authenticated
-      const effectiveMode = user ? mode : 'read';
-
       const { data, error } = await supabase.functions.invoke('assistant', {
-        body: {
-          mode: effectiveMode,
-          messages: allMessages,
-          context
-        }
+        body: { message: messageToSend }
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
@@ -367,7 +349,7 @@ export default function CopilotoCRM() {
             )}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Bot className="w-4 h-4" />
-              <span>Mistral AI</span>
+              <span>Asistente CRM</span>
             </div>
           </div>
         </div>

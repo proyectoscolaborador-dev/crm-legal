@@ -252,31 +252,12 @@ export function CustomAssistant() {
     setIsLoading(true);
 
     try {
-      const context = buildContext();
-      const allMessages = [...messages, userMessage].map(m => ({
-        role: m.role,
-        content: m.content
-      }));
-
-      // SECURITY: Force 'read' mode if user is not authenticated
-      // 'operate' mode requires authentication to prevent unauthorized data modifications
-      const effectiveMode = user ? mode : 'read';
-
       const { data, error } = await supabase.functions.invoke('assistant', {
-        body: {
-          mode: effectiveMode,
-          messages: allMessages,
-          context
-        }
+        body: { message: messageToSend }
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
@@ -358,7 +339,7 @@ export function CustomAssistant() {
           </div>
           <div>
             <h3 className="font-semibold text-sm">Copiloto</h3>
-            <p className="text-xs text-muted-foreground">Mistral AI</p>
+            <p className="text-xs text-muted-foreground">Asistente CRM</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -406,7 +387,7 @@ export function CustomAssistant() {
             <div className="text-center py-6">
               <Bot className="w-10 h-10 mx-auto text-muted-foreground/50 mb-2" />
               <p className="text-sm text-muted-foreground">
-                ¡Hola! Soy tu Copiloto con Mistral AI.
+                ¡Hola! Soy tu Copiloto.
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {mode === 'read' 

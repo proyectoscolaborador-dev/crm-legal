@@ -159,49 +159,7 @@ export function CopilotoChat({ className = '' }: CopilotoChatProps) {
     }
   }, [isListening]);
 
-  const buildSystemInstructions = useCallback(async () => {
-    if (!user) return 'Eres Copiloto. Responde en 1-2 frases máximo.';
-
-    try {
-      const safeQuery = async (table: string, select: string, extra?: (q: any) => any) => {
-        let q = supabase.from(table).select(select);
-        if (extra) q = extra(q);
-        const result = await q.limit(10);
-        return result.data || [];
-      };
-
-      const [clients, works, reminders, presupuestos] = await Promise.all([
-        safeQuery('clientes', '*', q => q.order('created_at', { ascending: false })),
-        safeQuery('works', '*, client:clientes(name, company)', q => q.order('created_at', { ascending: false })),
-        safeQuery('reminders', '*', q => q.eq('is_completed', false).order('reminder_date', { ascending: true })),
-        safeQuery('presupuestos', '*', q => q.order('created_at', { ascending: false })),
-      ]);
-
-      const totalPendiente = works
-        .filter((w: any) => w.status !== 'cobrado')
-        .reduce((sum: number, w: any) => sum + (Number(w.amount || 0) - Number(w.advance_payments || 0)), 0);
-
-      const today = new Date().toISOString().split('T')[0];
-
-      return `Eres Copiloto, asistente de CRM. REGLA FUNDAMENTAL: Responde en MÁXIMO 1-2 frases cortas. Sin listas. Sin explicaciones largas. Sé directo como un mensaje de WhatsApp.
-
-Fecha: ${today}
-
-ACCIONES:
-- Crear recordatorio: [CREAR_RECORDATORIO: título | YYYY-MM-DD | descripción]
-
-DATOS:
-- Clientes: ${clients.slice(0, 5).map((c: any) => c.name).join(', ') || 'Ninguno'}
-- Trabajos: ${works.slice(0, 3).map((w: any) => w.title).join(', ') || 'Ninguno'}
-- Pendiente cobro: ${totalPendiente.toFixed(0)}€
-- Recordatorios: ${reminders.length}
-
-Responde BREVE. Solo 1-2 frases.`;
-    } catch (error) {
-      console.error('Error building context:', error);
-      return 'Eres Copiloto. Responde en 1-2 frases máximo.';
-    }
-  }, [user]);
+  // No longer builds local context - the Edge Function handles everything
 
   const processAssistantResponse = useCallback(async (response: string): Promise<string> => {
     const reminderMatch = response.match(/\[CREAR_RECORDATORIO:\s*([^|]+)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*(?:\|\s*([^\]]*))?\]/);
@@ -242,21 +200,8 @@ Responde BREVE. Solo 1-2 frases.`;
     setIsExpanded(true);
 
     try {
-      const instrucciones_sistema = await buildSystemInstructions();
-
-      const recentHistory = messages.slice(-6).map(m => 
-        `${m.role === 'user' ? 'Tú' : 'Copiloto'}: ${m.content}`
-      ).join('\n');
-
-      const fullMessage = recentHistory 
-        ? `${recentHistory}\nTú: ${messageToSend}`
-        : messageToSend;
-
       const { data, error } = await supabase.functions.invoke('assistant', {
-        body: { 
-          message: fullMessage,
-          session_id: 'crm-session'
-        }
+        body: { message: messageToSend }
       });
 
       if (error) throw error;

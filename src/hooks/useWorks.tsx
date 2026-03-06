@@ -20,8 +20,7 @@ export function useWorks() {
         .select(`
           *,
           client:clientes(*)
-        `)
-        .order('position', { ascending: true });
+        `);
 
       if (error) throw error;
       
