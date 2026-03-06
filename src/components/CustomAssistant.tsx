@@ -252,11 +252,18 @@ export function CustomAssistant() {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('assistant', {
-        body: { message: messageToSend }
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/assistant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ message: messageToSend }),
       });
 
-      if (error) throw new Error(error.message);
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      const data = await response.json();
       if (data?.error) throw new Error(data.error);
 
       const assistantMessage: Message = {
