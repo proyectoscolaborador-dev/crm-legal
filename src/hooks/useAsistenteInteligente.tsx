@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/lib/externalSupabase';
 import { WorkWithClient, Client, STAGE_CONFIG } from '@/types/database';
 import { Presupuesto } from '@/types/empresa';
 import { Reminder } from './useReminders';
@@ -338,16 +337,24 @@ ${agendaProxima.length === 0 ? 'Sin eventos próximos' : agendaProxima.slice(0, 
         preguntaUsuario +
         "\n\nReglas del asistente:\n- Español siempre.\n- No inventes datos.\n- Si falta información dilo.\n- Puedes resumir, comparar, ordenar, priorizar, calcular riesgos y dar insights.\n- Si la pregunta es financiera, usa deuda, vencimientos y facturas.\n- Si es operativa, usa obras y agenda.\n- Si es comercial, usa clientes y presupuestos.\n- Tu objetivo es ayudar a tomar decisiones rápidas.\n- Sé conciso pero completo. Máximo 3-4 frases para respuestas simples, más detalle solo si se pide.";
 
-      const { data, error: invokeError } = await supabase.functions.invoke('gemini-api', {
-        body: {
-          instrucciones_sistema: '',
-          mensaje_usuario: mensajeCompleto,
-        }
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assistant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'x-region': 'eu-central-1',
+        },
+        body: JSON.stringify({ message: mensajeCompleto, session_id: 'crm-local-session' }),
       });
 
-      if (invokeError) throw invokeError;
+      if (!response.ok) {
+        throw new Error(`Error en la llamada al asistente: ${response.status} ${response.statusText}`);
+      }
 
-      const respuestaAsistente = data?.response || 'No pude procesar tu solicitud.';
+      const data = await response.json();
+
+      const respuestaAsistente = data?.reply || 'No pude procesar tu solicitud.';
       setRespuesta(respuestaAsistente);
       return respuestaAsistente;
 
