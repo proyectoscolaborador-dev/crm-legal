@@ -48,7 +48,6 @@ export function useReminders() {
           event: '*',
           schema: 'public',
           table: 'reminders',
-          filter: `user_id=eq.${effectiveUserId}`,
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['reminders'] });

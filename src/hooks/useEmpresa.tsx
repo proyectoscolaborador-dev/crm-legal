@@ -63,10 +63,11 @@ export function useEmpresa() {
 
   const deleteEmpresa = useMutation({
     mutationFn: async () => {
+      if (!empresa?.id) throw new Error('No company data to delete');
       const { error } = await supabase
         .from('empresa_usuario')
         .delete()
-        .eq('user_id', effectiveUserId);
+        .eq('id', empresa.id);
       
       if (error) throw error;
     },

@@ -43,7 +43,6 @@ export function useWorks() {
           event: '*',
           schema: 'public',
           table: 'works',
-          filter: `user_id=eq.${effectiveUserId}`,
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['works'] });

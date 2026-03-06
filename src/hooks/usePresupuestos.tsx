@@ -18,24 +18,15 @@ export function usePresupuestos() {
   const effectiveUserId = user?.id || DEFAULT_USER_ID;
 
   const { data: presupuestos = [], isLoading } = useQuery({
-    queryKey: ['presupuestos', effectiveUserId],
+    queryKey: ['presupuestos'],
     queryFn: async () => {
-      let result = await supabase
+      const { data, error } = await supabase
         .from('presupuestos')
         .select('*')
-        .eq('user_id', effectiveUserId)
         .order('created_at', { ascending: false });
-      
-      if (result.error?.message?.includes('user_id') || result.error?.code === '42703') {
-        console.warn('user_id column not found on presupuestos, querying without filter');
-        result = await supabase
-          .from('presupuestos')
-          .select('*')
-          .order('created_at', { ascending: false });
-      }
 
-      if (result.error) throw result.error;
-      return (result.data || []).map(parsePresupuesto);
+      if (error) throw error;
+      return (data || []).map(parsePresupuesto);
     },
   });
 
