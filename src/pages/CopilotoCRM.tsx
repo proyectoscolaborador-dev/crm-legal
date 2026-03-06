@@ -246,30 +246,12 @@ export default function CopilotoCRM() {
     setIsLoading(true);
 
     try {
-      const context = buildContext();
-      const allMessages = [...messages, userMessage].map(m => ({
-        role: m.role,
-        content: m.content
-      }));
-
-      // Force 'read' mode if user is not authenticated
-      const effectiveMode = user ? mode : 'read';
-
       const { data, error } = await supabase.functions.invoke('assistant', {
-        body: {
-          mode: effectiveMode,
-          messages: allMessages,
-          context
-        }
+        body: { message: messageToSend }
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
