@@ -48,7 +48,7 @@ export function useClients() {
   const updateClient = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Client> & { id: string }) => {
       const { data, error } = await supabase
-        .from('clients')
+        .from('clientes')
         .update(updates)
         .eq('id', id)
         .select()
