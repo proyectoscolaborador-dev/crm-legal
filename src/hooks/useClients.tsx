@@ -15,7 +15,7 @@ export function useClients() {
     queryKey: ['clients', effectiveUserId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('clients')
+        .from('clientes')
         .select('*')
         .eq('user_id', effectiveUserId)
         .order('created_at', { ascending: false });
