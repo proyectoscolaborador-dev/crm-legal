@@ -15,7 +15,7 @@ import {
   MicOff,
   CalendarPlus
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/externalSupabase';
 import { useClients } from '@/hooks/useClients';
 import { useWorks } from '@/hooks/useWorks';
 import { useReminders } from '@/hooks/useReminders';

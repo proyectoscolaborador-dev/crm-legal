@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/externalSupabase';
 import { WorkWithClient, Client, STAGE_CONFIG } from '@/types/database';
 import { Presupuesto } from '@/types/empresa';
 import { Reminder } from './useReminders';
