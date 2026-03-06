@@ -339,7 +339,7 @@ export function CustomAssistant() {
           </div>
           <div>
             <h3 className="font-semibold text-sm">Copiloto</h3>
-            <p className="text-xs text-muted-foreground">Mistral AI</p>
+            <p className="text-xs text-muted-foreground">Asistente CRM</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
