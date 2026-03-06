@@ -154,7 +154,7 @@ export default function Analytics() {
   const { clients } = useClients();
   const { presupuestos, isLoading: presupuestosLoading } = usePresupuestos();
   const { reminders } = useReminders();
-  const { llamarMistralAsistente, isLoading: isAsistenteLoading } = useAsistenteInteligente();
+  const [isAsistenteLoading, setIsAsistenteLoading] = useState(false);
   
   // State
   const [activeTab, setActiveTab] = useState('dashboard');
