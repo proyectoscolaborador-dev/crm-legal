@@ -200,21 +200,8 @@ export function CopilotoChat({ className = '' }: CopilotoChatProps) {
     setIsExpanded(true);
 
     try {
-      const instrucciones_sistema = await buildSystemInstructions();
-
-      const recentHistory = messages.slice(-6).map(m => 
-        `${m.role === 'user' ? 'Tú' : 'Copiloto'}: ${m.content}`
-      ).join('\n');
-
-      const fullMessage = recentHistory 
-        ? `${recentHistory}\nTú: ${messageToSend}`
-        : messageToSend;
-
       const { data, error } = await supabase.functions.invoke('assistant', {
-        body: { 
-          message: fullMessage,
-          session_id: 'crm-session'
-        }
+        body: { message: messageToSend }
       });
 
       if (error) throw error;

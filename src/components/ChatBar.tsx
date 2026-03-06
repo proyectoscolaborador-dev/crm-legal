@@ -198,29 +198,8 @@ export function ChatBar() {
     setIsLoading(true);
 
     try {
-      const context = buildContext();
-      const allMessages = [...messages, userMessage].map(m => ({
-        role: m.role,
-        content: m.content
-      }));
-
       const { data, error } = await supabase.functions.invoke('assistant', {
-        body: {
-          mode: 'operate',
-          messages: allMessages,
-          context,
-          systemPrompt: `Eres un asistente de EJECUCIÓN de tareas para un CRM de reformas. 
-          SOLO ejecutas acciones, NO haces consultas largas. 
-          Para consultas detalladas y analíticas, indica al usuario que acuda a esas secciones.
-          
-          SIEMPRE que completes una acción, ofrece: "¿Quieres que lo añada a tu agenda?"
-          
-          Responde de forma MUY breve. Usa emojis. 
-          
-          Formatea la información usando markdown:
-          - **Negrita** para nombres
-          - Viñetas para listas`
-        }
+        body: { message: userMessage.content }
       });
 
       if (error) throw new Error(error.message);

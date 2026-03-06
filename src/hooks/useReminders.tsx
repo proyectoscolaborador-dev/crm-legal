@@ -30,8 +30,7 @@ export function useReminders() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('reminders')
-        .select('*')
-        .order('reminder_date', { ascending: true });
+        .select('*');
 
       if (error) throw error;
       return data as Reminder[];

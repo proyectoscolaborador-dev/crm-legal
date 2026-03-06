@@ -349,7 +349,7 @@ export default function CopilotoCRM() {
             )}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Bot className="w-4 h-4" />
-              <span>Mistral AI</span>
+              <span>Asistente CRM</span>
             </div>
           </div>
         </div>

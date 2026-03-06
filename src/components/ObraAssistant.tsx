@@ -185,29 +185,8 @@ export function ObraAssistant() {
     setIsLoading(true);
 
     try {
-      const context = buildContext();
-      const allMessages = [...messages, userMessage].map(m => ({
-        role: m.role,
-        content: m.content
-      }));
-
       const { data, error } = await supabase.functions.invoke('assistant', {
-        body: {
-          mode: 'operate', // Always operate mode in Obra
-          messages: allMessages,
-          context,
-          systemPrompt: `Eres un asistente de EJECUCIÓN de tareas para un CRM de reformas. 
-          SOLO ejecutas acciones, NO consultas. Si el usuario pregunta algo, responde brevemente y ofrécele agendar un recordatorio.
-          
-          SIEMPRE que completes una acción, ofrece: "¿Quieres que lo añada a tu agenda?"
-          
-          Responde de forma MUY breve y directa. Usa emojis para hacer el chat amigable.
-          
-          Formatea la información de forma ordenada:
-          - Usa viñetas para listas
-          - Separa clientes/trabajos claramente
-          - Usa negrita para nombres importantes`
-        }
+        body: { message: userMessage.content }
       });
 
       if (error) throw new Error(error.message);

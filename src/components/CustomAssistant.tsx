@@ -387,7 +387,7 @@ export function CustomAssistant() {
             <div className="text-center py-6">
               <Bot className="w-10 h-10 mx-auto text-muted-foreground/50 mb-2" />
               <p className="text-sm text-muted-foreground">
-                ¡Hola! Soy tu Copiloto con Mistral AI.
+                ¡Hola! Soy tu Copiloto.
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {mode === 'read' 
