@@ -28,14 +28,22 @@ export function useReminders() {
   const { data: reminders = [], isLoading } = useQuery({
     queryKey: ['reminders', effectiveUserId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let result = await supabase
         .from('reminders')
         .select('*')
         .eq('user_id', effectiveUserId)
         .order('reminder_date', { ascending: true });
       
-      if (error) throw error;
-      return data as Reminder[];
+      if (result.error?.message?.includes('user_id') || result.error?.code === '42703') {
+        console.warn('user_id column not found on reminders, querying without filter');
+        result = await supabase
+          .from('reminders')
+          .select('*')
+          .order('reminder_date', { ascending: true });
+      }
+
+      if (result.error) throw result.error;
+      return result.data as Reminder[];
     },
   });
 
