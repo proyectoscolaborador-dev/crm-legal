@@ -26,24 +26,15 @@ export function useReminders() {
   const effectiveUserId = user?.id || DEFAULT_USER_ID;
 
   const { data: reminders = [], isLoading } = useQuery({
-    queryKey: ['reminders', effectiveUserId],
+    queryKey: ['reminders'],
     queryFn: async () => {
-      let result = await supabase
+      const { data, error } = await supabase
         .from('reminders')
         .select('*')
-        .eq('user_id', effectiveUserId)
         .order('reminder_date', { ascending: true });
-      
-      if (result.error?.message?.includes('user_id') || result.error?.code === '42703') {
-        console.warn('user_id column not found on reminders, querying without filter');
-        result = await supabase
-          .from('reminders')
-          .select('*')
-          .order('reminder_date', { ascending: true });
-      }
 
-      if (result.error) throw result.error;
-      return result.data as Reminder[];
+      if (error) throw error;
+      return data as Reminder[];
     },
   });
 
@@ -57,7 +48,6 @@ export function useReminders() {
           event: '*',
           schema: 'public',
           table: 'reminders',
-          filter: `user_id=eq.${effectiveUserId}`,
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['reminders'] });

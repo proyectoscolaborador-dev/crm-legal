@@ -163,16 +163,10 @@ export function CopilotoChat({ className = '' }: CopilotoChatProps) {
     if (!user) return 'Eres Copiloto. Responde en 1-2 frases máximo.';
 
     try {
-      // Helper to query with user_id fallback
       const safeQuery = async (table: string, select: string, extra?: (q: any) => any) => {
-        let q = supabase.from(table).select(select).eq('user_id', user.id);
+        let q = supabase.from(table).select(select);
         if (extra) q = extra(q);
-        let result = await q.limit(10);
-        if (result.error?.message?.includes('user_id') || result.error?.code === '42703') {
-          let q2 = supabase.from(table).select(select);
-          if (extra) q2 = extra(q2);
-          result = await q2.limit(10);
-        }
+        const result = await q.limit(10);
         return result.data || [];
       };
 

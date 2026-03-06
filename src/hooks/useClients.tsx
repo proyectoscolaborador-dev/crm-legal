@@ -12,25 +12,15 @@ export function useClients() {
   const effectiveUserId = user?.id || DEFAULT_USER_ID;
 
   const { data: clients = [], isLoading } = useQuery({
-    queryKey: ['clients', effectiveUserId],
+    queryKey: ['clients'],
     queryFn: async () => {
-      // Try with user_id filter first, fallback without it
-      let result = await supabase
+      const { data, error } = await supabase
         .from('clientes')
         .select('*')
-        .eq('user_id', effectiveUserId)
         .order('created_at', { ascending: false });
-      
-      if (result.error?.message?.includes('user_id') || result.error?.code === '42703') {
-        console.warn('user_id column not found on clientes, querying without filter');
-        result = await supabase
-          .from('clientes')
-          .select('*')
-          .order('created_at', { ascending: false });
-      }
 
-      if (result.error) throw result.error;
-      return result.data as Client[];
+      if (error) throw error;
+      return data as Client[];
     },
   });
 

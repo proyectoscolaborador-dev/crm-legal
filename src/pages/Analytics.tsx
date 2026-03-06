@@ -644,10 +644,10 @@ INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
     const effectiveUserId = user?.id || DEFAULT_USER_ID;
     setIsResetting(true);
     try {
-      await supabase.from('presupuestos').delete().eq('user_id', effectiveUserId);
-      await supabase.from('works').delete().eq('user_id', effectiveUserId);
-      await supabase.from('clientes').delete().eq('user_id', effectiveUserId);
-      await supabase.from('reminders').delete().eq('user_id', effectiveUserId);
+      await supabase.from('presupuestos').delete().neq('id', '');
+      await supabase.from('works').delete().neq('id', '');
+      await supabase.from('clientes').delete().neq('id', '');
+      await supabase.from('reminders').delete().neq('id', '');
       
       toast.success('Datos eliminados');
       setResetDialogOpen(false);

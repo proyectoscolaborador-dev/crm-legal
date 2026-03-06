@@ -12,24 +12,15 @@ export function useEmpresa() {
   const effectiveUserId = user?.id || DEFAULT_USER_ID;
 
   const { data: empresa, isLoading, error } = useQuery({
-    queryKey: ['empresa', effectiveUserId],
+    queryKey: ['empresa'],
     queryFn: async () => {
-      let result = await supabase
+      const { data, error } = await supabase
         .from('empresa_usuario')
         .select('*')
-        .eq('user_id', effectiveUserId)
         .maybeSingle();
-      
-      if (result.error?.message?.includes('user_id') || result.error?.code === '42703') {
-        console.warn('user_id column not found on empresa_usuario, querying without filter');
-        result = await supabase
-          .from('empresa_usuario')
-          .select('*')
-          .maybeSingle();
-      }
 
-      if (result.error) throw result.error;
-      return result.data as EmpresaUsuario | null;
+      if (error) throw error;
+      return data as EmpresaUsuario | null;
     },
   });
 
@@ -38,14 +29,13 @@ export function useEmpresa() {
       const { data: existing } = await supabase
         .from('empresa_usuario')
         .select('id')
-        .eq('user_id', effectiveUserId)
         .maybeSingle();
 
       if (existing) {
         const { data: updated, error } = await supabase
           .from('empresa_usuario')
           .update(data)
-          .eq('user_id', effectiveUserId)
+          .eq('id', existing.id)
           .select()
           .single();
         
@@ -73,10 +63,11 @@ export function useEmpresa() {
 
   const deleteEmpresa = useMutation({
     mutationFn: async () => {
+      if (!empresa?.id) throw new Error('No company data to delete');
       const { error } = await supabase
         .from('empresa_usuario')
         .delete()
-        .eq('user_id', effectiveUserId);
+        .eq('id', empresa.id);
       
       if (error) throw error;
     },

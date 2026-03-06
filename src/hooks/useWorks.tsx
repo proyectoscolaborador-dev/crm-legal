@@ -13,31 +13,19 @@ export function useWorks() {
   const effectiveUserId = user?.id || DEFAULT_USER_ID;
 
   const { data: works = [], isLoading } = useQuery({
-    queryKey: ['works', effectiveUserId],
+    queryKey: ['works'],
     queryFn: async () => {
-      let result = await supabase
+      const { data, error } = await supabase
         .from('works')
         .select(`
           *,
           client:clientes(*)
         `)
-        .eq('user_id', effectiveUserId)
         .order('position', { ascending: true });
-      
-      if (result.error?.message?.includes('user_id') || result.error?.code === '42703') {
-        console.warn('user_id column not found on works, querying without filter');
-        result = await supabase
-          .from('works')
-          .select(`
-            *,
-            client:clientes(*)
-          `)
-          .order('position', { ascending: true });
-      }
 
-      if (result.error) throw result.error;
+      if (error) throw error;
       
-      return (result.data || []).map(work => ({
+      return (data || []).map(work => ({
         ...work,
         images: Array.isArray(work.images) ? work.images : [],
         advance_payments: work.advance_payments || 0,
@@ -55,7 +43,6 @@ export function useWorks() {
           event: '*',
           schema: 'public',
           table: 'works',
-          filter: `user_id=eq.${effectiveUserId}`,
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['works'] });
