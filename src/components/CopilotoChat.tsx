@@ -255,7 +255,7 @@ Responde BREVE. Solo 1-2 frases.`;
       const { data, error } = await supabase.functions.invoke('assistant', {
         body: { 
           message: fullMessage,
-          session_id: user?.id || 'session-crm-2026'
+          session_id: 'crm-session'
         }
       });
 
