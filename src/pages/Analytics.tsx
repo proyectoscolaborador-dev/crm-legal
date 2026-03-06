@@ -65,7 +65,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { supabase } from '@/lib/externalSupabase';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/externalSupabase';
 import { format, subDays, isAfter, isBefore, parseISO, addDays, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useQueryClient } from '@tanstack/react-query';
@@ -530,11 +530,18 @@ export default function Analytics() {
     setIsAiLoading(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('assistant', {
-        body: { message: userMessage }
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/assistant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ message: userMessage }),
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      const data = await response.json();
 
       const cleanedResponse = processAiResponse(data?.reply || 'Error al procesar.');
       setChatMessages(prev => [...prev, { role: 'assistant', content: cleanedResponse }]);

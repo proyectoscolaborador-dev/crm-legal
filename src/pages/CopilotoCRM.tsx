@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Send, Loader2, Bot, User, Zap, Eye, CheckCircle2, XCircle, Trash2, Mic, MicOff } from 'lucide-react';
-import { supabase } from '@/lib/externalSupabase';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/externalSupabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { useWorks } from '@/hooks/useWorks';
@@ -246,11 +246,18 @@ export default function CopilotoCRM() {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('assistant', {
-        body: { message: messageToSend }
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/assistant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ message: messageToSend }),
       });
 
-      if (error) throw new Error(error.message);
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      const data = await response.json();
       if (data?.error) throw new Error(data.error);
 
       const assistantMessage: Message = {
