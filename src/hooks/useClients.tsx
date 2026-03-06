@@ -28,7 +28,7 @@ export function useClients() {
   const createClient = useMutation({
     mutationFn: async (client: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
-        .from('clients')
+        .from('clientes')
         .insert({ ...client, user_id: effectiveUserId })
         .select()
         .single();
