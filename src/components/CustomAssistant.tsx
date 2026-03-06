@@ -18,7 +18,7 @@ import {
   Mic,
   MicOff
 } from 'lucide-react';
-import { supabase } from '@/lib/externalSupabase';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/externalSupabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { useWorks } from '@/hooks/useWorks';
