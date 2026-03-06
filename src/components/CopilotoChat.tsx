@@ -200,18 +200,28 @@ export function CopilotoChat({ className = '' }: CopilotoChatProps) {
     setIsExpanded(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('assistant', {
-        body: { message: messageToSend }
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/assistant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ message: messageToSend }),
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error ${response.status}: ${errorText}`);
+      }
 
-      const processedResponse = await processAssistantResponse(data?.reply || 'Error');
+      const data = await response.json();
+      const replyContent = data?.reply || 'Sin respuesta';
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: processedResponse,
+        content: replyContent,
         timestamp: new Date(),
       };
 
