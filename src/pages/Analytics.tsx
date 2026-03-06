@@ -530,41 +530,13 @@ export default function Analytics() {
     setIsAiLoading(true);
     
     try {
-      // Build context with filtered data for analytics
-      const contextData = {
-        works: filteredWorks as any[], // Use filtered works
-        clients,
-        presupuestos: filteredPresupuestos as any[],
-        reminders,
-        pantalla: 'analytics' as const,
-        filtrosActivos: {
-          dateRange: filters.dateRange,
-          status: filters.status,
-          client: filters.client === 'all' ? 'Todos' : clients.find(c => c.id === filters.client)?.name || 'N/A',
-          minAmount: filters.minAmount,
-          maxAmount: filters.maxAmount,
-        },
-      };
+      const { data, error } = await supabase.functions.invoke('assistant', {
+        body: { message: userMessage }
+      });
 
-      // Add extra instructions for analytics context
-      const preguntaConContexto = `
-${userMessage}
+      if (error) throw error;
 
-INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
-- Responde sobre los datos FILTRADOS actualmente, no sobre todos los datos.
-- Si el usuario pregunta "qué deuda hay" o similar, usa solo los datos del filtro actual.
-- Si el usuario quiere datos globales, acláralo y menciona que está viendo datos filtrados.
-- Puedes usar comandos de acción:
-  [FILTRO_FECHA: 7d|30d|90d|365d|all]
-  [FILTRO_ESTADO: presupuesto_solicitado|presupuesto_enviado|presupuesto_aceptado|pendiente_facturar|factura_enviada|cobrado|all]
-  [FILTRO_CLIENTE: id_cliente|all]
-  [EXPORTAR: csv|pdf]
-- Sé conciso pero completo.
-`;
-
-      const respuesta = await llamarMistralAsistente(preguntaConContexto, contextData);
-      const cleanedResponse = processAiResponse(respuesta);
-      
+      const cleanedResponse = processAiResponse(data?.reply || 'Error al procesar.');
       setChatMessages(prev => [...prev, { role: 'assistant', content: cleanedResponse }]);
     } catch (error) {
       console.error('AI Error:', error);
