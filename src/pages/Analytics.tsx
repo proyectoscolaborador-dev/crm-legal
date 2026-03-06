@@ -5,7 +5,7 @@ import { useWorks } from '@/hooks/useWorks';
 import { useClients } from '@/hooks/useClients';
 import { usePresupuestos } from '@/hooks/usePresupuestos';
 import { useReminders } from '@/hooks/useReminders';
-import { useAsistenteInteligente } from '@/hooks/useAsistenteInteligente';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
