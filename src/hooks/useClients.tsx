@@ -69,7 +69,7 @@ export function useClients() {
   const deleteClient = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('clients')
+        .from('clientes')
         .delete()
         .eq('id', id);
       

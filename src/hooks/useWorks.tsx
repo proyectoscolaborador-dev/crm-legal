@@ -78,7 +78,7 @@ export function useWorks() {
         })
         .select(`
           *,
-          client:clients(*)
+          client:clientes(*)
         `)
         .single();
       
