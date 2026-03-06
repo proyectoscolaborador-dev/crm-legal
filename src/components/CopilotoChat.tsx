@@ -250,17 +250,16 @@ Responde BREVE. Solo 1-2 frases.`;
         ? `${recentHistory}\nTú: ${messageToSend}`
         : messageToSend;
 
-      const { data, error } = await supabase.functions.invoke('gemini-api', {
+      const { data, error } = await supabase.functions.invoke('assistant', {
         body: { 
-          instrucciones_sistema,
-          mensaje_usuario: fullMessage
+          message: fullMessage,
+          session_id: user?.id || 'session-crm-2026'
         }
       });
 
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
+      if (error) throw error;
 
-      const processedResponse = await processAssistantResponse(data?.response || 'Error');
+      const processedResponse = await processAssistantResponse(data?.reply || 'Error');
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
