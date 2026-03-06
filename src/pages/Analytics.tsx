@@ -199,7 +199,7 @@ export default function Analytics() {
       }));
       
       const { data: createdClients, error: clientError } = await supabase
-        .from('clients')
+        .from('clientes')
         .insert(clientInserts)
         .select();
       
