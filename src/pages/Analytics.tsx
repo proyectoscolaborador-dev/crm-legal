@@ -199,7 +199,7 @@ export default function Analytics() {
       }));
       
       const { data: createdClients, error: clientError } = await supabase
-        .from('clients')
+        .from('clientes')
         .insert(clientInserts)
         .select();
       
@@ -646,7 +646,7 @@ INSTRUCCIONES ADICIONALES PARA ANALÍTICAS:
     try {
       await supabase.from('presupuestos').delete().eq('user_id', effectiveUserId);
       await supabase.from('works').delete().eq('user_id', effectiveUserId);
-      await supabase.from('clients').delete().eq('user_id', effectiveUserId);
+      await supabase.from('clientes').delete().eq('user_id', effectiveUserId);
       await supabase.from('reminders').delete().eq('user_id', effectiveUserId);
       
       toast.success('Datos eliminados');

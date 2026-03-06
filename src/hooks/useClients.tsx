@@ -15,7 +15,7 @@ export function useClients() {
     queryKey: ['clients', effectiveUserId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('clients')
+        .from('clientes')
         .select('*')
         .eq('user_id', effectiveUserId)
         .order('created_at', { ascending: false });
@@ -28,7 +28,7 @@ export function useClients() {
   const createClient = useMutation({
     mutationFn: async (client: Omit<Client, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
-        .from('clients')
+        .from('clientes')
         .insert({ ...client, user_id: effectiveUserId })
         .select()
         .single();
@@ -48,7 +48,7 @@ export function useClients() {
   const updateClient = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Client> & { id: string }) => {
       const { data, error } = await supabase
-        .from('clients')
+        .from('clientes')
         .update(updates)
         .eq('id', id)
         .select()
@@ -69,7 +69,7 @@ export function useClients() {
   const deleteClient = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('clients')
+        .from('clientes')
         .delete()
         .eq('id', id);
       

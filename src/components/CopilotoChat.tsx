@@ -164,8 +164,8 @@ export function CopilotoChat({ className = '' }: CopilotoChatProps) {
 
     try {
       const [clientsRes, worksRes, remindersRes, presupuestosRes] = await Promise.all([
-        supabase.from('clients').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
-        supabase.from('works').select('*, client:clients(name, company)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+        supabase.from('clientes').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+        supabase.from('works').select('*, client:clientes(name, company)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
         supabase.from('reminders').select('*').eq('user_id', user.id).eq('is_completed', false).order('reminder_date', { ascending: true }).limit(10),
         supabase.from('presupuestos').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
       ]);

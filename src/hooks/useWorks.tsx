@@ -19,7 +19,7 @@ export function useWorks() {
         .from('works')
         .select(`
           *,
-          client:clients(*)
+          client:clientes(*)
         `)
         .eq('user_id', effectiveUserId)
         .order('position', { ascending: true });
@@ -78,7 +78,7 @@ export function useWorks() {
         })
         .select(`
           *,
-          client:clients(*)
+          client:clientes(*)
         `)
         .single();
       

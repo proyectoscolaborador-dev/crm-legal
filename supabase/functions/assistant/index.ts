@@ -59,7 +59,7 @@ interface MistralResponse {
 
 // Map entity names to table names
 const entityToTable: Record<string, string> = {
-  cliente: 'clients',
+  cliente: 'clientes',
   cita: 'reminders',
   presupuesto: 'presupuestos',
   factura: 'works',
